@@ -1,7 +1,14 @@
 {
     "name": "schachbulle/contao-metadaten-bundle",
     "type": "contao-bundle",
-    "description": "Bearbeitung von Metadaten für Contao 4",
+    "description": "Bearbeitet die Metadaten von Dateien aus der Dateiverwaltung gesammelt im Backend.",
+    "keywords": [
+        "contao",
+        "metadaten",
+        "dateiverwaltung",
+        "backend"
+    ],
+    "homepage": "https://github.com/Samson1964/contao-metadaten-bundle",
     "license": "LGPL-3.0-or-later",
     "authors": [
         {
