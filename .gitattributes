@@ -1,0 +1,3 @@
+# Nicht mit ins Composer-Archiv aufnehmen
+package-metadata.yml export-ignore
+.gitattributes export-ignore

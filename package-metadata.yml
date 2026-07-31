@@ -1,0 +1,12 @@
+# Quelle fuer die Metadaten im Contao Manager (contao/package-metadata).
+# Aenderungen hier werden von Claude in den Fork uebertragen.
+# Der englische Block wird beim Abgleich ergaenzt, falls er fehlt.
+
+de:
+    title: Metadaten
+    description: >
+        Bearbeitet die Metadaten von Dateien aus der Dateiverwaltung gesammelt im Backend.
+    keywords:
+        - Metadaten
+        - Dateiverwaltung
+        - Backend
