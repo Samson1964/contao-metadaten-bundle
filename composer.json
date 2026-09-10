@@ -1,11 +1,14 @@
 {
     "name": "schachbulle/contao-metadaten-bundle",
     "type": "contao-bundle",
-    "description": "Bearbeitet die Metadaten von Dateien aus der Dateiverwaltung gesammelt im Backend.",
+    "description": "Backend-Modul für Contao 4.13 und 5: Metadaten von Dateien (Titel, Alternativtext, Link, Bildunterschrift, Lizenz) gesammelt suchen, ersetzen oder setzen.",
     "keywords": [
         "contao",
         "metadaten",
+        "metadata",
         "dateiverwaltung",
+        "bildunterschrift",
+        "suchen und ersetzen",
         "backend"
     ],
     "homepage": "https://github.com/Samson1964/contao-metadaten-bundle",
@@ -17,8 +20,8 @@
         }
     ],
     "require": {
-        "php": "^5.6 || ^7.0",
-        "contao/core-bundle": "^4"
+        "php": "^7.4 || ^8.0",
+        "contao/core-bundle": "^4.13 || ^5.7"
     },
     "conflict": {
         "contao/core": "*",
@@ -26,7 +29,7 @@
     },
     "require-dev": {
         "contao/manager-plugin": "^2.0",
-        "doctrine/doctrine-cache-bundle": "^1.3"
+        "phpunit/phpunit": "^9.5 || ^10.0"
     },
     "extra": {
         "contao-manager-plugin": "Schachbulle\\ContaoMetadatenBundle\\ContaoManager\\Plugin"
@@ -34,6 +37,11 @@
     "autoload": {
         "psr-4": {
             "Schachbulle\\ContaoMetadatenBundle\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Schachbulle\\ContaoMetadatenBundle\\Tests\\": "tests/"
         }
     },
     "support": {

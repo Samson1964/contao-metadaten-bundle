@@ -1,6 +1,15 @@
 <?php
 
-/**
- * Backend-Modul Übersetzungen
+declare(strict_types=1);
+
+/*
+ * Metadaten für Contao Open Source CMS
+ *
+ * @author    Frank Hoppe
+ * @license   LGPL-3.0-or-later
  */
-$GLOBALS['TL_LANG']['MOD']['schiedsrichterverteiler'] = array('Schiedsrichterverteiler', 'Schiedsrichterverteiler verwalten');
+
+/*
+ * Backend-Modul (Gruppe „System“)
+ */
+$GLOBALS['TL_LANG']['MOD']['metadaten'] = array('Metadaten', 'Metadaten von Dateien gesammelt suchen, ersetzen oder setzen');

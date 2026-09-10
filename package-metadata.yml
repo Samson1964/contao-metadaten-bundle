@@ -1,12 +1,33 @@
-# Quelle fuer die Metadaten im Contao Manager (contao/package-metadata).
-# Aenderungen hier werden von Claude in den Fork uebertragen.
-# Der englische Block wird beim Abgleich ergaenzt, falls er fehlt.
+# Quelle für die Metadaten im Contao Manager (contao/package-metadata).
+# Änderungen hier werden von Claude in den Fork übertragen.
+# Der englische Block wird beim Abgleich ergänzt, falls er fehlt.
 
 de:
     title: Metadaten
     description: >
-        Bearbeitet die Metadaten von Dateien aus der Dateiverwaltung gesammelt im Backend.
+        Backend-Modul, das die Metadaten von Dateien aus der Dateiverwaltung
+        gesammelt bearbeitet: Titel, Alternativtext, Link, Bildunterschrift
+        und Lizenz lassen sich in vielen Dateien auf einmal suchen und
+        ersetzen oder mit festen Werten setzen, global oder für einen Ordner
+        samt Unterordnern. Jede Änderung wird versioniert.
     keywords:
         - Metadaten
         - Dateiverwaltung
+        - Bildunterschrift
+        - Suchen und Ersetzen
         - Backend
+
+en:
+    title: Metadata
+    description: >
+        Back end module that edits the metadata of files from the file
+        manager in bulk: title, alternative text, link, caption and license
+        can be searched and replaced or set to fixed values in many files
+        at once, globally or for a folder including its subfolders. Every
+        change is versioned.
+    keywords:
+        - metadata
+        - file manager
+        - caption
+        - search and replace
+        - back end

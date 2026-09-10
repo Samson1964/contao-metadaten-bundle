@@ -1,0 +1,225 @@
+<?php
+/**
+ * Backend-Template des Moduls „Metadaten“.
+ *
+ * Wird von Modules\Metadaten befüllt. Alle Texte kommen aus
+ * $GLOBALS['TL_LANG']['METADATEN'] (hier als $this->texte), die
+ * Feldbezeichnungen aus Contaos eigener Sprachdatei (MSC.aw_*).
+ *
+ * Ausgaben werden mit StringUtil::specialchars() maskiert, weil Ordnerpfade,
+ * Suchtexte und Metadaten Benutzereingaben sind.
+ */
+
+use Contao\StringUtil;
+
+$t = $this->texte;
+$w = $this->werte;
+$sc = static function ($wert): string { return StringUtil::specialchars((string) $wert); };
+?>
+<div id="tl_buttons">
+	<a href="<?= $this->zurueck ?>" class="header_back" title="<?= $sc($GLOBALS['TL_LANG']['MSC']['backBTTitle'] ?? '') ?>" accesskey="b"><?= $GLOBALS['TL_LANG']['MSC']['backBT'] ?? 'Zurück' ?></a>
+</div>
+
+<h2 class="sub_headline"><?= $sc($t['headline'] ?? 'Metadaten') ?></h2>
+
+<?= $this->meldungen ?>
+
+<?php if (null !== $this->ergebnis): ?>
+	<div class="tl_listing_container metadaten-ergebnis">
+		<?php if ($this->ergebnis): ?>
+			<p class="tl_info"><?= $sc(sprintf($t['ergebnisListe'] ?? '%d Dateien:', \count($this->ergebnis))) ?></p>
+			<ul class="metadaten-dateiliste">
+				<?php foreach ($this->ergebnis as $pfad): ?>
+					<li><?= $sc($pfad) ?></li>
+				<?php endforeach; ?>
+			</ul>
+		<?php endif; ?>
+	</div>
+<?php endif; ?>
+
+<form id="<?= $this->formular ?>" class="tl_form tl_edit_form metadaten-formular" method="post" action="<?= $this->action ?>">
+<div class="tl_formbody_edit">
+	<input type="hidden" name="FORM_SUBMIT" value="<?= $this->formular ?>">
+	<input type="hidden" name="REQUEST_TOKEN" value="<?= $this->requestToken ?>">
+
+	<p class="tl_help metadaten-einleitung"><?= $t['einleitung'] ?? '' ?></p>
+
+	<fieldset class="tl_tbox">
+		<legend><?= $sc($t['legendAuswahl'] ?? 'Auswahl') ?></legend>
+
+		<div class="widget w50">
+			<h3><label for="ctrl_ordner"><?= $sc($t['ordner'][0] ?? 'Ordner') ?></label></h3>
+			<select name="ordner" id="ctrl_ordner" class="tl_select">
+				<option value=""<?= '' === $w['ordner'] ? ' selected' : '' ?>><?= $sc($t['alleOrdner'] ?? 'alle Dateien') ?></option>
+				<?php foreach ($this->ordner as $pfad => $name): ?>
+					<option value="<?= $sc($pfad) ?>"<?= $pfad === $w['ordner'] ? ' selected' : '' ?>><?= $sc($name) ?></option>
+				<?php endforeach; ?>
+			</select>
+			<p class="tl_help tl_tip"><?= $sc($t['ordner'][1] ?? '') ?></p>
+		</div>
+
+		<div class="widget w50 m12">
+			<div class="tl_checkbox_single_container">
+				<input type="checkbox" name="unterordner" id="ctrl_unterordner" class="tl_checkbox" value="1"<?= $w['unterordner'] ? ' checked' : '' ?>>
+				<label for="ctrl_unterordner"><?= $sc($t['unterordner'][0] ?? 'Unterordner einschließen') ?></label>
+			</div>
+			<p class="tl_help tl_tip"><?= $sc($t['unterordner'][1] ?? '') ?></p>
+		</div>
+
+		<div class="widget w50 clr">
+			<h3><label for="ctrl_endungen"><?= $sc($t['endungen'][0] ?? 'Dateiendungen') ?></label></h3>
+			<input type="text" name="endungen" id="ctrl_endungen" class="tl_text" value="<?= $sc($w['endungen']) ?>" placeholder="jpg, jpeg, png, webp">
+			<p class="tl_help tl_tip"><?= $sc($t['endungen'][1] ?? '') ?></p>
+		</div>
+
+		<div class="widget w50">
+			<h3><label for="ctrl_sprache"><?= $sc($t['sprache'][0] ?? 'Sprache') ?></label></h3>
+			<select name="sprache" id="ctrl_sprache" class="tl_select">
+				<option value=""<?= '' === $w['sprache'] ? ' selected' : '' ?>><?= $sc($t['alleSprachen'] ?? 'alle vorhandenen Sprachen') ?></option>
+				<?php foreach ($this->sprachen as $kuerzel => $name): ?>
+					<option value="<?= $sc($kuerzel) ?>"<?= (string) $kuerzel === $w['sprache'] ? ' selected' : '' ?>><?= $sc($name) ?> [<?= $sc($kuerzel) ?>]</option>
+				<?php endforeach; ?>
+			</select>
+			<p class="tl_help tl_tip"><?= $sc($t['sprache'][1] ?? '') ?></p>
+		</div>
+
+		<div class="widget clr">
+			<fieldset class="tl_checkbox_container">
+				<legend><?= $sc($t['felder'][0] ?? 'Felder') ?></legend>
+				<?php foreach ($this->felder as $feld => $name): ?>
+					<span>
+						<input type="checkbox" name="felder[]" id="ctrl_feld_<?= $feld ?>" class="tl_checkbox" value="<?= $feld ?>"<?= \in_array($feld, $w['felder'], true) ? ' checked' : '' ?>>
+						<label for="ctrl_feld_<?= $feld ?>"><?= $sc($name) ?></label>
+					</span>
+				<?php endforeach; ?>
+			</fieldset>
+			<p class="tl_help tl_tip"><?= $sc($t['felder'][1] ?? '') ?></p>
+		</div>
+	</fieldset>
+
+	<fieldset class="tl_box">
+		<legend><?= $sc($t['legendModus'] ?? 'Bearbeitung') ?></legend>
+
+		<div class="widget clr">
+			<fieldset class="tl_radio_container">
+				<legend><?= $sc($t['modus'][0] ?? 'Betriebsart') ?></legend>
+				<span>
+					<input type="radio" name="modus" id="ctrl_modus_ersetzen" class="tl_radio" value="ersetzen"<?= 'setzen' !== $w['modus'] ? ' checked' : '' ?>>
+					<label for="ctrl_modus_ersetzen"><?= $sc($t['modusErsetzen'] ?? 'Suchen und ersetzen') ?></label>
+				</span>
+				<span>
+					<input type="radio" name="modus" id="ctrl_modus_setzen" class="tl_radio" value="setzen"<?= 'setzen' === $w['modus'] ? ' checked' : '' ?>>
+					<label for="ctrl_modus_setzen"><?= $sc($t['modusSetzen'] ?? 'Werte setzen') ?></label>
+				</span>
+			</fieldset>
+			<p class="tl_help tl_tip"><?= $sc($t['modus'][1] ?? '') ?></p>
+		</div>
+
+		<div class="metadaten-block">
+			<h3 class="metadaten-blocktitel"><?= $sc($t['modusErsetzen'] ?? 'Suchen und ersetzen') ?></h3>
+
+			<div class="widget w50 clr">
+				<h3><label for="ctrl_suche"><?= $sc($t['suche'][0] ?? 'Suchen nach') ?></label></h3>
+				<input type="text" name="suche" id="ctrl_suche" class="tl_text" value="<?= $sc($w['suche']) ?>">
+				<p class="tl_help tl_tip"><?= $sc($t['suche'][1] ?? '') ?></p>
+			</div>
+
+			<div class="widget w50">
+				<h3><label for="ctrl_ersatz"><?= $sc($t['ersatz'][0] ?? 'Ersetzen durch') ?></label></h3>
+				<input type="text" name="ersatz" id="ctrl_ersatz" class="tl_text" value="<?= $sc($w['ersatz']) ?>">
+				<p class="tl_help tl_tip"><?= $sc($t['ersatz'][1] ?? '') ?></p>
+			</div>
+
+			<div class="widget w50 clr">
+				<div class="tl_checkbox_single_container">
+					<input type="checkbox" name="gross" id="ctrl_gross" class="tl_checkbox" value="1"<?= $w['gross'] ? ' checked' : '' ?>>
+					<label for="ctrl_gross"><?= $sc($t['gross'][0] ?? 'Groß- und Kleinschreibung beachten') ?></label>
+				</div>
+				<p class="tl_help tl_tip"><?= $sc($t['gross'][1] ?? '') ?></p>
+			</div>
+
+			<div class="widget w50">
+				<div class="tl_checkbox_single_container">
+					<input type="checkbox" name="regex" id="ctrl_regex" class="tl_checkbox" value="1"<?= $w['regex'] ? ' checked' : '' ?>>
+					<label for="ctrl_regex"><?= $sc($t['regex'][0] ?? 'Regulärer Ausdruck') ?></label>
+				</div>
+				<p class="tl_help tl_tip"><?= $sc($t['regex'][1] ?? '') ?></p>
+			</div>
+		</div>
+
+		<div class="metadaten-block">
+			<h3 class="metadaten-blocktitel"><?= $sc($t['modusSetzen'] ?? 'Werte setzen') ?></h3>
+
+			<?php foreach ($this->felder as $feld => $name): ?>
+				<div class="widget<?= 'caption' === $feld ? ' clr long' : ' w50' ?>">
+					<h3><label for="ctrl_wert_<?= $feld ?>"><?= $sc($name) ?></label></h3>
+					<?php if ('caption' === $feld): ?>
+						<textarea name="wert_<?= $feld ?>" id="ctrl_wert_<?= $feld ?>" class="tl_textarea" rows="3"><?= $sc($w['werte'][$feld] ?? '') ?></textarea>
+					<?php else: ?>
+						<input type="text" name="wert_<?= $feld ?>" id="ctrl_wert_<?= $feld ?>" class="tl_text" value="<?= $sc($w['werte'][$feld] ?? '') ?>">
+					<?php endif; ?>
+				</div>
+			<?php endforeach; ?>
+
+			<div class="widget clr">
+				<div class="tl_checkbox_single_container">
+					<input type="checkbox" name="nurLeere" id="ctrl_nurLeere" class="tl_checkbox" value="1"<?= $w['nurLeere'] ? ' checked' : '' ?>>
+					<label for="ctrl_nurLeere"><?= $sc($t['nurLeere'][0] ?? 'Nur leere Felder füllen') ?></label>
+				</div>
+				<p class="tl_help tl_tip"><?= $sc($t['nurLeere'][1] ?? '') ?></p>
+			</div>
+		</div>
+	</fieldset>
+
+	<?php if (null !== $this->vorschau): ?>
+		<fieldset class="tl_box metadaten-vorschau">
+			<legend><?= $sc($t['legendVorschau'] ?? 'Vorschau') ?></legend>
+
+			<?php if (0 === $this->vorschau['anzahl']): ?>
+				<p class="tl_info"><?= $sc(sprintf($t['keineTreffer'] ?? 'Keine Änderungen in %d Dateien.', $this->vorschau['gesamt'])) ?></p>
+			<?php else: ?>
+				<p class="tl_info"><?= $sc(sprintf($t['treffer'] ?? '%d von %d Dateien werden geändert.', $this->vorschau['anzahl'], $this->vorschau['gesamt'])) ?></p>
+				<?php if ($this->vorschau['gekuerzt']): ?>
+					<p class="tl_help"><?= $sc(sprintf($t['gekuerzt'] ?? 'Es werden nur die ersten %d Dateien angezeigt.', \count($this->vorschau['zeilen']))) ?></p>
+				<?php endif; ?>
+
+				<div class="metadaten-tabelle">
+					<table class="tl_listing">
+						<thead>
+							<tr>
+								<th class="tl_folder_tlist"><?= $sc($t['spalteDatei'] ?? 'Datei') ?></th>
+								<th class="tl_folder_tlist"><?= $sc($t['spalteSprache'] ?? 'Sprache') ?></th>
+								<th class="tl_folder_tlist"><?= $sc($t['spalteFeld'] ?? 'Feld') ?></th>
+								<th class="tl_folder_tlist"><?= $sc($t['spalteAlt'] ?? 'bisher') ?></th>
+								<th class="tl_folder_tlist"><?= $sc($t['spalteNeu'] ?? 'neu') ?></th>
+							</tr>
+						</thead>
+						<tbody>
+							<?php foreach ($this->vorschau['zeilen'] as $zeile): ?>
+								<?php foreach ($zeile['unterschiede'] as $i => $u): ?>
+									<tr>
+										<td class="tl_file_list"><?= 0 === $i ? $sc($zeile['path']) : '' ?></td>
+										<td class="tl_file_list"><?= $sc($u['sprache']) ?></td>
+										<td class="tl_file_list"><?= $sc($this->felder[$u['feld']] ?? $u['feld']) ?></td>
+										<td class="tl_file_list metadaten-alt"><?= $sc($u['alt']) ?></td>
+										<td class="tl_file_list metadaten-neu"><?= $sc($u['neu']) ?></td>
+									</tr>
+								<?php endforeach; ?>
+							<?php endforeach; ?>
+						</tbody>
+					</table>
+				</div>
+			<?php endif; ?>
+		</fieldset>
+	<?php endif; ?>
+</div>
+
+<div class="tl_formbody_submit">
+	<div class="tl_submit_container">
+		<button type="submit" name="vorschau" id="vorschau" class="tl_submit" accesskey="s" value="1"><?= $sc($t['vorschau'] ?? 'Vorschau') ?></button>
+		<?php if (null !== $this->vorschau && $this->vorschau['anzahl'] > 0): ?>
+			<button type="submit" name="ausfuehren" id="ausfuehren" class="tl_submit metadaten-ausfuehren" value="1"><?= $sc(sprintf($t['ausfuehren'] ?? '%d Dateien jetzt ändern', $this->vorschau['anzahl'])) ?></button>
+		<?php endif; ?>
+	</div>
+</div>
+</form>

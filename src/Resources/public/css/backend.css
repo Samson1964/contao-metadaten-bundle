@@ -1,0 +1,76 @@
+/*
+ * Stile der Modulseite „Metadaten“ im Contao-Backend.
+ *
+ * Bewusst knapp: Formularfelder, Fieldsets und Tabellen kommen aus Contaos
+ * eigenem Backend-Stylesheet (4.13 und 5.x). Hier steht nur, was Contao
+ * für eine Vorschautabelle mit Vorher/Nachher nicht mitbringt.
+ */
+
+.metadaten-einleitung {
+	margin: 0 15px 12px;
+	max-width: 900px;
+}
+
+.metadaten-block {
+	margin: 12px 0 0;
+	padding-top: 6px;
+	border-top: 1px solid var(--border, #ddd);
+}
+
+.metadaten-blocktitel {
+	margin: 6px 15px 0;
+	font-size: .9rem;
+	font-weight: 600;
+	color: var(--text-secondary, #666);
+}
+
+.metadaten-tabelle {
+	overflow-x: auto;
+	margin: 0 15px 12px;
+}
+
+.metadaten-tabelle table {
+	width: 100%;
+	border-collapse: collapse;
+}
+
+.metadaten-tabelle th,
+.metadaten-tabelle td {
+	padding: 4px 8px;
+	vertical-align: top;
+	text-align: left;
+	border-bottom: 1px solid var(--border, #ddd);
+	font-size: .8rem;
+	word-break: break-word;
+}
+
+.metadaten-tabelle td.metadaten-alt {
+	color: var(--red, #c33);
+	text-decoration: line-through;
+}
+
+.metadaten-tabelle td.metadaten-neu {
+	color: var(--green, #2a7);
+}
+
+.metadaten-ergebnis {
+	margin-bottom: 12px;
+}
+
+.metadaten-dateiliste {
+	margin: 0 15px 12px;
+	padding: 0 0 0 18px;
+	max-height: 240px;
+	overflow-y: auto;
+	font-size: .8rem;
+}
+
+.metadaten-dateiliste li {
+	margin: 0;
+	padding: 1px 0;
+}
+
+.tl_submit_container .metadaten-ausfuehren {
+	margin-left: 12px;
+	font-weight: 600;
+}

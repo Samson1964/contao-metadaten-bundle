@@ -1,9 +1,13 @@
 services:
-    _instanceof:
-        Contao\CoreBundle\Framework\FrameworkAwareInterface:
-            calls:
-                - ["setFramework", ["@contao.framework"]]
-
-        Symfony\Component\DependencyInjection\ContainerAwareInterface:
-            calls:
-                - ["setContainer", ["@service_container"]]
+    # Das Bundle braucht derzeit keine eigenen Dienste: Das Backend-Modul
+    # wird von Contao über den 'callback'-Eintrag in $GLOBALS['BE_MOD']
+    # direkt erzeugt.
+    #
+    # Hinweis: Hier stand früher ein _instanceof-Block für FrameworkAwareInterface
+    # und ContainerAwareInterface. ContainerAwareInterface gibt es seit
+    # Symfony 7 nicht mehr — der Block hätte den Behälterbau unter Contao 5
+    # verhindert.
+    _defaults:
+        autowire: true
+        autoconfigure: true
+        public: false
