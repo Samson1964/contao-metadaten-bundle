@@ -14,10 +14,11 @@ namespace Schachbulle\ContaoMetadatenBundle\Classes;
 /**
  * Beschreibt einen Bearbeitungsauftrag für die Metadaten von Dateien.
  *
- * Der Auftrag ist eine reine Datenhülle ohne Verhalten. Das Backend-Modul
- * füllt ihn aus den Formulareingaben, die Klasse Bearbeitung wendet ihn auf
- * das Metadaten-Feld einer einzelnen Datei an. Dadurch lässt sich die
- * eigentliche Logik ohne Contao und ohne Datenbank prüfen.
+ * Der Auftrag ist eine reine Datenhülle ohne Verhalten. Er wird aus einem
+ * Datensatz der Tabelle tl_metadaten gebaut (ausDatensatz()), und die Klasse
+ * Bearbeitung wendet ihn auf das Metadaten-Feld einer einzelnen Datei an.
+ * Dadurch lässt sich die eigentliche Logik ohne Contao und ohne Datenbank
+ * prüfen.
  *
  * Zwei Betriebsarten:
  *
@@ -97,4 +98,45 @@ final class Auftrag
 	 * @var bool
 	 */
 	public $nurLeere = false;
+
+	/**
+	 * Baut einen Auftrag aus einem Datensatz der Tabelle tl_metadaten.
+	 *
+	 * Erwartet die Spalten so, wie sie aus der Datenbank kommen: Checkboxen
+	 * als '1' oder '', das Feld felder serialisiert (oder bereits als Feld),
+	 * die Werte in den Spalten wert_<feld>. Fehlende Spalten führen zu den
+	 * Vorgaben, nicht zu Fehlern — die Prüfung übernimmt Bearbeitung::pruefen().
+	 *
+	 * @param array<string, mixed> $row Der Datensatz
+	 *
+	 * @return self Der ungeprüfte Auftrag
+	 */
+	public static function ausDatensatz(array $row): self
+	{
+		$auftrag = new self();
+		$auftrag->modus = (string) ($row['modus'] ?? self::MODUS_ERSETZEN);
+		$auftrag->sprache = (string) ($row['sprache'] ?? '');
+		$auftrag->suche = (string) ($row['suche'] ?? '');
+		$auftrag->ersatz = (string) ($row['ersatz'] ?? '');
+		$auftrag->regex = !empty($row['regex']);
+		$auftrag->gross = !empty($row['gross']);
+		$auftrag->nurLeere = !empty($row['nurLeere']);
+
+		$felder = $row['felder'] ?? array();
+
+		if (\is_string($felder))
+		{
+			$entpackt = '' === $felder ? array() : @unserialize($felder, array('allowed_classes' => false));
+			$felder = \is_array($entpackt) ? $entpackt : array();
+		}
+
+		$auftrag->felder = array_values(array_map('strval', array_filter((array) $felder, 'is_scalar')));
+
+		foreach (Bearbeitung::FELDER as $feld)
+		{
+			$auftrag->werte[$feld] = (string) ($row['wert_' . $feld] ?? '');
+		}
+
+		return $auftrag;
+	}
 }

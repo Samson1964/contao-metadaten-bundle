@@ -15,6 +15,7 @@ use Contao\BackendTemplate;
 use Contao\BackendUser;
 use Contao\CoreBundle\Exception\RedirectResponseException;
 use Contao\Database;
+use Contao\DataContainer;
 use Contao\FilesModel;
 use Contao\Input;
 use Contao\Message;
@@ -24,41 +25,40 @@ use Contao\Versions;
 use Schachbulle\ContaoMetadatenBundle\Classes\Auftrag;
 use Schachbulle\ContaoMetadatenBundle\Classes\Bearbeitung;
 use Schachbulle\ContaoMetadatenBundle\Classes\Helfer;
+use Schachbulle\ContaoMetadatenBundle\Model\MetadatenModel;
 
 /**
- * Backend-Modul „Metadaten“: Suchen, Ersetzen und Setzen in den Metadaten der Dateiverwaltung.
+ * Vorschau und Ausführung eines gespeicherten Auftrags aus tl_metadaten.
  *
- * Contao ruft die Klasse über den Eintrag 'callback' in $GLOBALS['BE_MOD']
- * auf: Sie wird mit dem (hier stets leeren) DataContainer erzeugt, und
- * generate() liefert das HTML für den Hauptbereich. Das gilt in 4.13 und
- * 5.x gleichermaßen (Backend::getBackendModule()).
+ * Contao ruft vorschau() über den Eintrag 'vorschau' in $GLOBALS['BE_MOD']
+ * auf, sobald in der Adresszeile &key=vorschau&id=… steht (Operation
+ * „Vorschau und Ausführen“ in der Auftragsliste). Die Klasse wird dafür mit
+ * System::importStatic() ohne Argumente erzeugt — in 4.13 und 5.x gleich.
  *
  * Ablauf einer Anfrage:
- * 1. Ordnerliste und Sprachen zusammenstellen, Formularwerte ermitteln
- *    (Vorgaben, Sitzung nach einer Ausführung oder die POST-Eingaben).
- * 2. Bei einem abgeschickten Formular den Auftrag prüfen, die betroffenen
- *    Dateien lesen und die Änderungen berechnen.
- * 3. „Vorschau“ zeigt die Änderungen nur an. „Ausführen“ schreibt sie mit
- *    einer Version je Datei in die Datenbank, merkt sich Formular und
- *    Ergebnis in der Sitzung und leitet auf dieselbe Adresse um, damit ein
- *    Neuladen der Seite die Änderung nicht ein zweites Mal ausführt.
+ * 1. Auftrag laden, Ordner-UUID in einen Pfad auflösen, Auftrag prüfen.
+ * 2. Betroffene Dateien lesen und die Änderungen berechnen.
+ * 3. Ohne POST: Vorschau mit alten und neuen Werten anzeigen.
+ *    Mit POST „ausführen“: Änderungen mit einer Version je Datei schreiben,
+ *    Ergebnis in der Sitzung merken und auf dieselbe Adresse umleiten, damit
+ *    ein Neuladen der Seite die Änderung nicht ein zweites Mal ausführt.
  *
  * Rechte: Wer das Modul sieht, entscheidet Contao über die Modulrechte der
- * Benutzergruppe. Zusätzlich bekommen Nicht-Administratoren nur die Ordner
- * ihrer Dateifreigaben angeboten, und die Dateiauswahl bleibt auf diese
- * Freigaben beschränkt.
+ * Benutzergruppe. Zusätzlich bleibt die Dateiauswahl für Nicht-Administratoren
+ * auf ihre Dateifreigaben beschränkt — auch dann, wenn der Auftrag von einem
+ * Administrator mit einem fremden Ordner angelegt wurde.
  */
 class Metadaten
 {
 	/**
-	 * Wert von FORM_SUBMIT, an dem das eigene Formular erkannt wird
+	 * Wert von FORM_SUBMIT, an dem die Ausführung erkannt wird
 	 */
-	private const FORMULAR = 'tl_metadaten';
+	private const FORMULAR = 'tl_metadaten_ausfuehren';
 
 	/**
-	 * Schlüssel in der Backend-Sitzung für Formular und Ergebnis nach dem Ausführen
+	 * Schlüssel in der Backend-Sitzung für das Ergebnis nach dem Ausführen
 	 */
-	private const SITZUNG = 'metadaten_formular';
+	private const SITZUNG = 'metadaten_ergebnis';
 
 	/**
 	 * Höchstzahl der Dateien, deren Änderungen in der Vorschau aufgelistet werden
@@ -66,28 +66,18 @@ class Metadaten
 	private const VORSCHAU_MAX = 200;
 
 	/**
-	 * Nimmt den DataContainer entgegen, den Contao beim Aufruf übergibt.
+	 * Baut die Vorschauseite eines Auftrags und führt ihn auf Wunsch aus.
 	 *
-	 * Das Modul arbeitet ohne Tabelle, der Parameter ist deshalb immer null.
-	 * Die Signatur muss ihn trotzdem annehmen, weil Backend::getBackendModule()
-	 * ihn in beiden Contao-Fassungen übergibt.
-	 *
-	 * @param mixed $dc Der DataContainer oder null
-	 */
-	public function __construct($dc = null)
-	{
-	}
-
-	/**
-	 * Baut die Modulseite und verarbeitet ein abgeschicktes Formular.
+	 * @param DataContainer|null $dc Der DataContainer von tl_metadaten (von Contao übergeben)
 	 *
 	 * @return string Das HTML des Backend-Templates be_metadaten
 	 *
-	 * @throws RedirectResponseException nach einer erfolgreichen Ausführung
+	 * @throws RedirectResponseException nach einer Ausführung oder bei unbekanntem Auftrag
 	 */
-	public function generate(): string
+	public function vorschau($dc = null): string
 	{
 		System::loadLanguageFile('default');
+		System::loadLanguageFile('tl_metadaten');
 
 		$container = System::getContainer();
 		$user = BackendUser::getInstance();
@@ -95,206 +85,130 @@ class Metadaten
 		$sitzung = $container->get('request_stack')->getSession()->getBag('contao_backend');
 		$texte = $GLOBALS['TL_LANG']['METADATEN'] ?? array();
 
-		$freigaben = $this->freigaben($user);
-		$ordner = $this->ordner($freigaben);
-		$sprachen = $container->get('contao.intl.locales')->getEnabledLocales();
+		$id = (int) Input::get('id');
+		$model = $id > 0 ? MetadatenModel::findByPk($id) : null;
 
-		$werte = $this->vorgaben();
+		if (null === $model)
+		{
+			Message::addError($texte['fehler']['auftragUnbekannt'] ?? 'auftragUnbekannt');
+
+			throw new RedirectResponseException($this->listenUrl());
+		}
+
+		$row = $model->row();
+		$auftrag = Auftrag::ausDatensatz($row);
+		$freigaben = $this->freigaben($user);
+		$fehler = array();
+		$ordnerPfad = $this->ordnerPfad($row, $freigaben, $fehler);
 		$vorschau = null;
 		$ergebnis = null;
 
-		// Nach einer Ausführung: Formular wiederherstellen und Ergebnis zeigen
+		foreach (Bearbeitung::pruefen($auftrag) as $schluessel)
+		{
+			$fehler[] = $texte['fehler'][$schluessel] ?? $schluessel;
+		}
+
+		// Nach einer Ausführung: Ergebnis aus der Sitzung zeigen
 		if ($sitzung->has(self::SITZUNG))
 		{
 			$gemerkt = (array) $sitzung->get(self::SITZUNG);
 			$sitzung->remove(self::SITZUNG);
-			$werte = array_merge($werte, (array) ($gemerkt['formular'] ?? array()));
-			$ergebnis = (array) ($gemerkt['ergebnis'] ?? array());
+
+			if ((int) ($gemerkt['id'] ?? 0) === $id)
+			{
+				$ergebnis = (array) ($gemerkt['dateien'] ?? array());
+			}
 		}
 
-		if (self::FORMULAR === Input::post('FORM_SUBMIT'))
+		if (!$fehler)
 		{
-			$werte = $this->eingaben();
-			$auftrag = $this->auftrag($werte);
-			$fehler = $this->pruefen($auftrag, $werte, $ordner, $sprachen, $freigaben);
+			$dateien = $this->dateien($row, $ordnerPfad, $freigaben);
+			$aenderungen = $this->aenderungen($dateien, $auftrag, $fehler);
 
-			if (!$fehler)
+			if (!$fehler && self::FORMULAR === Input::post('FORM_SUBMIT'))
 			{
-				$dateien = $this->dateien($werte, $freigaben);
-				$aenderungen = $this->aenderungen($dateien, $auftrag, $fehler);
+				$anzahl = $this->schreiben($aenderungen);
 
-				if (!$fehler && Input::post('ausfuehren'))
-				{
-					$anzahl = $this->schreiben($aenderungen);
+				Message::addConfirmation(sprintf($texte['erledigt'] ?? '%d Dateien geändert.', $anzahl));
 
-					Message::addConfirmation(sprintf($texte['erledigt'] ?? '%d Dateien geändert.', $anzahl));
+				$sitzung->set(self::SITZUNG, array(
+					'id'      => $id,
+					'dateien' => array_column($aenderungen, 'path'),
+				));
 
-					$sitzung->set(self::SITZUNG, array(
-						'formular' => $werte,
-						'ergebnis' => array_column($aenderungen, 'path'),
-					));
-
-					throw new RedirectResponseException($request->getRequestUri());
-				}
-
-				$vorschau = array(
-					'gesamt'   => \count($dateien),
-					'anzahl'   => \count($aenderungen),
-					'zeilen'   => \array_slice($aenderungen, 0, self::VORSCHAU_MAX),
-					'gekuerzt' => \count($aenderungen) > self::VORSCHAU_MAX,
-				);
+				throw new RedirectResponseException($request->getRequestUri());
 			}
 
-			foreach ($fehler as $meldung)
-			{
-				Message::addError($meldung);
-			}
+			$vorschau = array(
+				'gesamt'   => \count($dateien),
+				'anzahl'   => \count($aenderungen),
+				'zeilen'   => \array_slice($aenderungen, 0, self::VORSCHAU_MAX),
+				'gekuerzt' => \count($aenderungen) > self::VORSCHAU_MAX,
+			);
+		}
+
+		foreach ($fehler as $meldung)
+		{
+			Message::addError($meldung);
 		}
 
 		$template = new BackendTemplate('be_metadaten');
 		$template->texte = $texte;
-		$template->werte = $werte;
-		$template->ordner = $ordner;
-		$template->sprachen = $sprachen;
+		$template->titel = (string) $row['titel'];
+		$template->zusammenfassung = $this->zusammenfassung($row, $auftrag, $ordnerPfad);
 		$template->felder = $this->feldbezeichnungen();
 		$template->vorschau = $vorschau;
 		$template->ergebnis = $ergebnis;
 		$template->meldungen = Message::generate();
 		$template->requestToken = Helfer::requestToken();
 		$template->action = StringUtil::ampersand($request->getRequestUri());
-		$template->zurueck = $this->dateiverwaltungUrl();
+		$template->zurueck = $this->listenUrl();
+		$template->bearbeiten = $this->bearbeitenUrl($id);
 		$template->formular = self::FORMULAR;
 
 		return $template->parse();
 	}
 
 	/**
-	 * Liefert die Vorgabewerte des Formulars beim ersten Aufruf.
+	 * Löst die Ordner-UUID des Auftrags in einen Pfad auf und prüft die Freigaben.
 	 *
-	 * Bewusst zurückhaltend: kein Feld vorausgewählt, „nur leere Felder
-	 * füllen“ eingeschaltet, Groß-/Kleinschreibung beachtet. Wer überschreiben
-	 * will, muss das ausdrücklich anwählen.
+	 * @param array<string, mixed> $row       Der Datensatz aus tl_metadaten
+	 * @param string[]|null        $freigaben Freigegebene Pfade, null ohne Beschränkung
+	 * @param string[]             $fehler    Fehlerliste, wird ergänzt
 	 *
-	 * @return array<string, mixed> Formularwerte mit denselben Schlüsseln wie eingaben()
+	 * @return string Der Ordnerpfad ohne Schrägstrich am Ende; leer für „alle Dateien“
 	 */
-	private function vorgaben(): array
-	{
-		return array(
-			'ordner'      => '',
-			'unterordner' => true,
-			'endungen'    => '',
-			'sprache'     => '',
-			'felder'      => array(),
-			'modus'       => Auftrag::MODUS_ERSETZEN,
-			'suche'       => '',
-			'ersatz'      => '',
-			'regex'       => false,
-			'gross'       => true,
-			'nurLeere'    => true,
-			'werte'       => array_fill_keys(Bearbeitung::FELDER, ''),
-		);
-	}
-
-	/**
-	 * Liest die Formulareingaben aus der POST-Anfrage.
-	 *
-	 * Such-, Ersatz- und Wertetexte kommen über Input::postRaw(), damit sie
-	 * so in der Datenbank landen, wie Contaos MetaWizard sie ablegt (das Feld
-	 * meta erlaubt HTML). Auswahlwerte laufen über Input::post() und werden
-	 * anschließend ohnehin gegen die erlaubten Listen geprüft.
-	 *
-	 * @return array<string, mixed> Formularwerte mit denselben Schlüsseln wie vorgaben()
-	 */
-	private function eingaben(): array
-	{
-		$werte = array();
-
-		foreach (Bearbeitung::FELDER as $feld)
-		{
-			$werte[$feld] = (string) Input::postRaw('wert_'.$feld);
-		}
-
-		return array(
-			'ordner'      => (string) Input::post('ordner'),
-			'unterordner' => (bool) Input::post('unterordner'),
-			'endungen'    => (string) Input::post('endungen'),
-			'sprache'     => (string) Input::post('sprache'),
-			'felder'      => array_values(array_map('strval', (array) Input::post('felder'))),
-			'modus'       => (string) Input::post('modus'),
-			'suche'       => (string) Input::postRaw('suche'),
-			'ersatz'      => (string) Input::postRaw('ersatz'),
-			'regex'       => (bool) Input::post('regex'),
-			'gross'       => (bool) Input::post('gross'),
-			'nurLeere'    => (bool) Input::post('nurLeere'),
-			'werte'       => $werte,
-		);
-	}
-
-	/**
-	 * Übersetzt die Formularwerte in einen Auftrag für die Bearbeitung.
-	 *
-	 * @param array<string, mixed> $werte Formularwerte aus eingaben()
-	 *
-	 * @return Auftrag Der ungeprüfte Auftrag
-	 */
-	private function auftrag(array $werte): Auftrag
-	{
-		$auftrag = new Auftrag();
-		$auftrag->modus = $werte['modus'];
-		$auftrag->felder = $werte['felder'];
-		$auftrag->sprache = $werte['sprache'];
-		$auftrag->suche = $werte['suche'];
-		$auftrag->ersatz = $werte['ersatz'];
-		$auftrag->regex = $werte['regex'];
-		$auftrag->gross = $werte['gross'];
-		$auftrag->werte = $werte['werte'];
-		$auftrag->nurLeere = $werte['nurLeere'];
-
-		return $auftrag;
-	}
-
-	/**
-	 * Prüft Auftrag und Auswahl und liefert fertige Fehlermeldungen.
-	 *
-	 * Neben den formalen Prüfungen der Bearbeitung wird hier sichergestellt,
-	 * dass Ordner und Sprache aus den angebotenen Listen stammen — der Ordner
-	 * ist die einzige Stelle, an der eine manipulierte Eingabe sonst Dateien
-	 * außerhalb der eigenen Freigaben erreichen könnte.
-	 *
-	 * @param Auftrag               $auftrag   Der zu prüfende Auftrag
-	 * @param array<string, mixed>  $werte     Formularwerte
-	 * @param array<string, string> $ordner    Erlaubte Ordnerpfade als Schlüssel
-	 * @param array<string, string> $sprachen  Aktivierte Sprachen als Schlüssel
-	 * @param string[]|null         $freigaben Dateifreigaben des Benutzers, null ohne Beschränkung
-	 *
-	 * @return string[] Übersetzte Fehlermeldungen; leer, wenn alles stimmt
-	 */
-	private function pruefen(Auftrag $auftrag, array $werte, array $ordner, array $sprachen, ?array $freigaben): array
+	private function ordnerPfad(array $row, ?array $freigaben, array &$fehler): string
 	{
 		$texte = $GLOBALS['TL_LANG']['METADATEN']['fehler'] ?? array();
-		$fehler = array();
 
-		foreach (Bearbeitung::pruefen($auftrag) as $schluessel)
+		if (empty($row['ordner']))
 		{
-			$fehler[] = $texte[$schluessel] ?? $schluessel;
+			if (null !== $freigaben && !$freigaben)
+			{
+				$fehler[] = $texte['keineFreigabe'] ?? 'keineFreigabe';
+			}
+
+			return '';
 		}
 
-		if ('' !== $werte['ordner'] && !isset($ordner[$werte['ordner']]))
+		$objOrdner = FilesModel::findByUuid($row['ordner']);
+
+		if (null === $objOrdner || 'folder' !== $objOrdner->type)
 		{
 			$fehler[] = $texte['ordnerUnbekannt'] ?? 'ordnerUnbekannt';
+
+			return '';
 		}
 
-		if ('' === $werte['ordner'] && null !== $freigaben && !$freigaben)
+		$pfad = rtrim((string) $objOrdner->path, '/');
+
+		if (null !== $freigaben && !$this->innerhalb($pfad, $freigaben))
 		{
-			$fehler[] = $texte['keineFreigabe'] ?? 'keineFreigabe';
+			$fehler[] = $texte['ordnerGesperrt'] ?? 'ordnerGesperrt';
 		}
 
-		if ('' !== $werte['sprache'] && !isset($sprachen[$werte['sprache']]))
-		{
-			$fehler[] = $texte['spracheUnbekannt'] ?? 'spracheUnbekannt';
-		}
-
-		return $fehler;
+		return $pfad;
 	}
 
 	/**
@@ -335,37 +249,6 @@ class Metadaten
 	}
 
 	/**
-	 * Stellt die Ordnerliste für das Auswahlfeld zusammen.
-	 *
-	 * Grundlage ist tl_files, nicht das Dateisystem — nur registrierte Ordner
-	 * haben Dateien mit Metadaten. Für Benutzer mit Freigaben bleiben nur die
-	 * freigegebenen Ordner samt Unterordnern übrig.
-	 *
-	 * @param string[]|null $freigaben Freigegebene Pfade, null ohne Beschränkung
-	 *
-	 * @return array<string, string> Pfad => Pfad, sortiert
-	 */
-	private function ordner(?array $freigaben): array
-	{
-		$liste = array();
-		$result = Database::getInstance()->execute("SELECT path FROM tl_files WHERE type='folder' ORDER BY path");
-
-		while ($result->next())
-		{
-			$pfad = (string) $result->path;
-
-			if (null !== $freigaben && !$this->innerhalb($pfad, $freigaben))
-			{
-				continue;
-			}
-
-			$liste[$pfad] = $pfad;
-		}
-
-		return $liste;
-	}
-
-	/**
 	 * Prüft, ob ein Pfad in einem der freigegebenen Ordner liegt.
 	 *
 	 * @param string   $pfad      Zu prüfender Pfad
@@ -377,7 +260,7 @@ class Metadaten
 	{
 		foreach ($freigaben as $freigabe)
 		{
-			if ($pfad === $freigabe || 0 === strpos($pfad, $freigabe.'/'))
+			if ($pfad === $freigabe || 0 === strpos($pfad, $freigabe . '/'))
 			{
 				return true;
 			}
@@ -392,28 +275,29 @@ class Metadaten
 	 * Die Eingrenzung geschieht ausschließlich über die Spalte path:
 	 * „Ordner mit Unterordnern“ ist ein LIKE auf den Pfadanfang, „nur der
 	 * Ordner selbst“ schließt zusätzlich alles mit einem weiteren Schrägstrich
-	 * aus. Ohne gewählten Ordner zählen alle Dateien bzw. alle Freigaben.
+	 * aus. Ohne Ordner zählen alle Dateien bzw. alle Freigaben.
 	 *
-	 * @param array<string, mixed> $werte     Formularwerte (ordner, unterordner, endungen)
-	 * @param string[]|null        $freigaben Freigegebene Pfade, null ohne Beschränkung
+	 * @param array<string, mixed> $row        Der Datensatz (unterordner, endungen)
+	 * @param string               $ordnerPfad Aufgelöster Ordnerpfad, leer für alle
+	 * @param string[]|null        $freigaben  Freigegebene Pfade, null ohne Beschränkung
 	 *
 	 * @return array<int, array{id: int|string, path: string, meta: string|null}>
 	 *         Die Dateien mit ihren rohen Metadaten, nach Pfad sortiert
 	 */
-	private function dateien(array $werte, ?array $freigaben): array
+	private function dateien(array $row, string $ordnerPfad, ?array $freigaben): array
 	{
 		$bedingungen = array("type='file'");
 		$parameter = array();
 
-		if ('' !== $werte['ordner'])
+		if ('' !== $ordnerPfad)
 		{
 			$bedingungen[] = 'path LIKE ?';
-			$parameter[] = $this->likeMuster($werte['ordner']).'/%';
+			$parameter[] = $this->likeMuster($ordnerPfad) . '/%';
 
-			if (!$werte['unterordner'])
+			if (empty($row['unterordner']))
 			{
 				$bedingungen[] = 'path NOT LIKE ?';
-				$parameter[] = $this->likeMuster($werte['ordner']).'/%/%';
+				$parameter[] = $this->likeMuster($ordnerPfad) . '/%/%';
 			}
 		}
 		elseif (null !== $freigaben)
@@ -428,22 +312,22 @@ class Metadaten
 			foreach ($freigaben as $freigabe)
 			{
 				$teile[] = 'path LIKE ?';
-				$parameter[] = $this->likeMuster($freigabe).'/%';
+				$parameter[] = $this->likeMuster($freigabe) . '/%';
 			}
 
-			$bedingungen[] = '('.implode(' OR ', $teile).')';
+			$bedingungen[] = '(' . implode(' OR ', $teile) . ')';
 		}
 
-		$endungen = $this->endungen($werte['endungen']);
+		$endungen = $this->endungen((string) ($row['endungen'] ?? ''));
 
 		if ($endungen)
 		{
-			$bedingungen[] = 'LOWER(extension) IN ('.implode(',', array_fill(0, \count($endungen), '?')).')';
+			$bedingungen[] = 'LOWER(extension) IN (' . implode(',', array_fill(0, \count($endungen), '?')) . ')';
 			$parameter = array_merge($parameter, $endungen);
 		}
 
 		$result = Database::getInstance()
-			->prepare('SELECT id, path, meta FROM tl_files WHERE '.implode(' AND ', $bedingungen).' ORDER BY path')
+			->prepare('SELECT id, path, meta FROM tl_files WHERE ' . implode(' AND ', $bedingungen) . ' ORDER BY path')
 			->execute($parameter);
 
 		return $result->fetchAllAssoc();
@@ -470,7 +354,7 @@ class Metadaten
 	 * Erlaubt sind Komma, Semikolon und Leerzeichen als Trenner; führende
 	 * Punkte werden entfernt, alles wird kleingeschrieben.
 	 *
-	 * @param string $eingabe Text aus dem Formularfeld
+	 * @param string $eingabe Text aus dem Feld endungen
 	 *
 	 * @return string[] Endungen in Kleinschreibung, ohne Doppelte; leer für „alle“
 	 */
@@ -521,7 +405,7 @@ class Metadaten
 			}
 			catch (\RuntimeException $e)
 			{
-				$fehler[] = $datei['path'].': '.$e->getMessage();
+				$fehler[] = $datei['path'] . ': ' . $e->getMessage();
 				continue;
 			}
 
@@ -577,6 +461,64 @@ class Metadaten
 	}
 
 	/**
+	 * Stellt die Einstellungen des Auftrags für den Kopf der Vorschauseite zusammen.
+	 *
+	 * @param array<string, mixed> $row        Der Datensatz
+	 * @param Auftrag              $auftrag    Der daraus gebaute Auftrag
+	 * @param string               $ordnerPfad Aufgelöster Ordnerpfad, leer für alle
+	 *
+	 * @return array<int, array{label: string, wert: string}> Bezeichnung und Wert je Zeile
+	 */
+	private function zusammenfassung(array $row, Auftrag $auftrag, string $ordnerPfad): array
+	{
+		$lang = $GLOBALS['TL_LANG']['tl_metadaten'] ?? array();
+		$ja = $GLOBALS['TL_LANG']['MSC']['yes'] ?? 'ja';
+		$nein = $GLOBALS['TL_LANG']['MSC']['no'] ?? 'nein';
+		$bezeichnungen = $this->feldbezeichnungen();
+
+		$ordner = '' !== $ordnerPfad ? $ordnerPfad : ($lang['alleDateien'] ?? 'alle Dateien');
+
+		if ('' !== $ordnerPfad && !empty($row['unterordner']))
+		{
+			$ordner .= ' ' . ($lang['mitUnterordnern'] ?? '(mit Unterordnern)');
+		}
+
+		$felder = array();
+
+		foreach ($auftrag->felder as $feld)
+		{
+			$felder[] = $bezeichnungen[$feld] ?? $feld;
+		}
+
+		$zeilen = array(
+			array('label' => $lang['ordner'][0] ?? 'Ordner', 'wert' => $ordner),
+			array('label' => $lang['endungen'][0] ?? 'Dateiendungen', 'wert' => '' !== trim((string) $row['endungen']) ? (string) $row['endungen'] : ($lang['alleDateien'] ?? 'alle')),
+			array('label' => $lang['sprache'][0] ?? 'Sprache', 'wert' => '' !== $auftrag->sprache ? $auftrag->sprache : ($lang['alleSprachen'] ?? 'alle')),
+			array('label' => $lang['felder'][0] ?? 'Felder', 'wert' => implode(', ', $felder)),
+			array('label' => $lang['modus'][0] ?? 'Betriebsart', 'wert' => (string) ($lang['modusOptionen'][$auftrag->modus] ?? $auftrag->modus)),
+		);
+
+		if (Auftrag::MODUS_SETZEN === $auftrag->modus)
+		{
+			foreach ($auftrag->felder as $feld)
+			{
+				$zeilen[] = array('label' => $bezeichnungen[$feld] ?? $feld, 'wert' => $auftrag->werte[$feld] ?? '');
+			}
+
+			$zeilen[] = array('label' => $lang['nurLeere'][0] ?? 'Nur leere Felder füllen', 'wert' => $auftrag->nurLeere ? $ja : $nein);
+		}
+		else
+		{
+			$zeilen[] = array('label' => $lang['suche'][0] ?? 'Suchen nach', 'wert' => $auftrag->suche);
+			$zeilen[] = array('label' => $lang['ersatz'][0] ?? 'Ersetzen durch', 'wert' => $auftrag->ersatz);
+			$zeilen[] = array('label' => $lang['gross'][0] ?? 'Groß-/Kleinschreibung', 'wert' => $auftrag->gross ? $ja : $nein);
+			$zeilen[] = array('label' => $lang['regex'][0] ?? 'Regulärer Ausdruck', 'wert' => $auftrag->regex ? $ja : $nein);
+		}
+
+		return $zeilen;
+	}
+
+	/**
 	 * Liefert die Bezeichnungen der Metadaten-Felder aus Contaos Sprachdatei.
 	 *
 	 * Der MetaWizard beschriftet seine Felder mit MSC.aw_<feld>; dieselben
@@ -591,14 +533,14 @@ class Metadaten
 
 		foreach (Bearbeitung::FELDER as $feld)
 		{
-			$liste[$feld] = (string) ($GLOBALS['TL_LANG']['MSC']['aw_'.$feld] ?? $feld);
+			$liste[$feld] = (string) ($GLOBALS['TL_LANG']['MSC']['aw_' . $feld] ?? $feld);
 		}
 
 		return $liste;
 	}
 
 	/**
-	 * Baut die Adresse der Dateiverwaltung für den Zurück-Knopf.
+	 * Baut die Adresse der Auftragsliste für den Zurück-Knopf.
 	 *
 	 * Über den Router, damit auch Installationen in einem Unterverzeichnis
 	 * die richtige Adresse bekommen; ohne Router bleibt die relative Form,
@@ -606,17 +548,40 @@ class Metadaten
 	 *
 	 * @return string Die Adresse mit Anfrage-Token
 	 */
-	private function dateiverwaltungUrl(): string
+	private function listenUrl(): string
 	{
+		return $this->backendUrl(array('do' => 'metadaten'));
+	}
+
+	/**
+	 * Baut die Adresse des Bearbeitungsformulars eines Auftrags.
+	 *
+	 * @param int $id ID des Auftrags
+	 *
+	 * @return string Die Adresse mit Anfrage-Token
+	 */
+	private function bearbeitenUrl(int $id): string
+	{
+		return $this->backendUrl(array('do' => 'metadaten', 'act' => 'edit', 'id' => $id));
+	}
+
+	/**
+	 * Baut eine Backend-Adresse mit Anfrage-Token.
+	 *
+	 * @param array<string, mixed> $parameter Abfrageparameter ohne rt
+	 *
+	 * @return string Die Adresse mit maskiertem Kaufmanns-Und
+	 */
+	private function backendUrl(array $parameter): string
+	{
+		$parameter['rt'] = Helfer::requestToken();
 		$container = System::getContainer();
 
 		if (null !== $container && $container->has('router'))
 		{
-			$url = $container->get('router')->generate('contao_backend', array('do' => 'files', 'rt' => Helfer::requestToken()));
-
-			return StringUtil::ampersand($url);
+			return StringUtil::ampersand($container->get('router')->generate('contao_backend', $parameter));
 		}
 
-		return 'contao?do=files&amp;rt='.Helfer::requestToken();
+		return StringUtil::ampersand('contao?' . http_build_query($parameter));
 	}
 }

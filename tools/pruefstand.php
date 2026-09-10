@@ -9,8 +9,8 @@ declare(strict_types=1);
  *
  * Der Prüfstand kommt ohne Composer-Installation des Bundles und ohne
  * Datenbank aus: Er stellt dem Autoloader der Testinstallation einen eigenen
- * voran, lädt Konfiguration, Sprachdateien und Klassen des Bundles und prüft,
- * ob alle benutzten Kern-Klassen, -Methoden und -Dienste in dieser
+ * voran, lädt Konfiguration, Sprachdateien, DCA und Klassen des Bundles und
+ * prüft, ob alle benutzten Kern-Klassen, -Methoden und -Dienste in dieser
  * Contao-Fassung vorhanden sind. Das Template wird mit php -l übersetzt.
  */
 
@@ -80,15 +80,19 @@ echo "PHP: ".PHP_VERSION."\n\n";
 // 1. Kern-Klassen und -Methoden, die das Bundle benutzt
 echo "Kern-API\n";
 $api = array(
+	'Contao\Backend' => null,
 	'Contao\BackendTemplate' => 'parse',
 	'Contao\BackendUser' => 'getInstance',
 	'Contao\Config' => 'get',
+	'Contao\DataContainer' => null,
+	'Contao\DC_Table' => null,
 	'Contao\Database' => 'getInstance',
 	'Contao\Database\Statement' => 'execute',
 	'Contao\Database\Result' => 'fetchAllAssoc',
-	'Contao\FilesModel' => 'findMultipleByUuids',
-	'Contao\Input' => 'postRaw',
+	'Contao\FilesModel' => 'findByUuid',
+	'Contao\Input' => 'get',
 	'Contao\Message' => 'addConfirmation',
+	'Contao\Model' => 'findByPk',
 	'Contao\StringUtil' => 'ampersand',
 	'Contao\System' => 'loadLanguageFile',
 	'Contao\Versions' => 'initialize',
@@ -105,6 +109,8 @@ foreach ($api as $klasse => $methode)
 	pruefe($klasse.($methode ? '::'.$methode.'()' : ''), $ok, $fehler);
 }
 
+pruefe('FilesModel::findMultipleByUuids()', method_exists('Contao\FilesModel', 'findMultipleByUuids'), $fehler);
+pruefe('Input::post()', method_exists('Contao\Input', 'post'), $fehler);
 pruefe('Message::addError()', method_exists('Contao\Message', 'addError'), $fehler);
 pruefe('Message::generate()', method_exists('Contao\Message', 'generate'), $fehler);
 pruefe('StringUtil::specialchars()', method_exists('Contao\StringUtil', 'specialchars'), $fehler);
@@ -115,7 +121,6 @@ pruefe('Versions::create()', method_exists('Contao\Versions', 'create'), $fehler
 $refMessage = new ReflectionMethod('Contao\Message', 'addError');
 pruefe('Message::addError() ohne zweites Argument aufrufbar', $refMessage->getNumberOfRequiredParameters() <= 1, $fehler);
 
-// Versions: Konstruktor nimmt Tabelle und ID, mehr braucht das Modul nicht
 $refVersions = new ReflectionMethod('Contao\Versions', '__construct');
 pruefe('Versions::__construct(Tabelle, ID)', 2 === $refVersions->getNumberOfParameters(), $fehler);
 
@@ -139,8 +144,9 @@ foreach (glob($bundle.'/src/Resources/contao/languages/de/*.php') as $datei)
 
 pruefe('MOD.metadaten beschriftet', isset($GLOBALS['TL_LANG']['MOD']['metadaten'][0]), $fehler);
 pruefe('METADATEN.erledigt vorhanden', isset($GLOBALS['TL_LANG']['METADATEN']['erledigt']), $fehler);
+pruefe('tl_metadaten.vorschau (Operation) beschriftet', isset($GLOBALS['TL_LANG']['tl_metadaten']['vorschau'][0]), $fehler);
 
-$fehlerschluessel = array('unbekannterModus', 'keineFelder', 'unbekanntesFeld', 'keineSuche', 'keineSprache', 'ungueltigesMuster', 'ordnerUnbekannt', 'spracheUnbekannt', 'keineFreigabe');
+$fehlerschluessel = array('auftragUnbekannt', 'unbekannterModus', 'keineFelder', 'unbekanntesFeld', 'keineSuche', 'keineSprache', 'ungueltigesMuster', 'ordnerUnbekannt', 'ordnerGesperrt', 'keineFreigabe');
 
 foreach ($fehlerschluessel as $schluessel)
 {
@@ -166,40 +172,126 @@ $GLOBALS['TL_CSS'] = array();
 
 require $bundle.'/src/Resources/contao/config/config.php';
 pruefe('config.php geladen', true, $fehler);
-pruefe('Backend-Modul metadaten angemeldet', isset($GLOBALS['BE_MOD']['system']['metadaten']['callback']), $fehler);
+pruefe('Backend-Modul metadaten mit Tabelle tl_metadaten', array('tl_metadaten') === ($GLOBALS['BE_MOD']['system']['metadaten']['tables'] ?? null), $fehler);
+pruefe('key=vorschau angemeldet', isset($GLOBALS['BE_MOD']['system']['metadaten']['vorschau'][1]), $fehler);
 pruefe('Modul steht direkt hinter der Dateiverwaltung', array('files', 'metadaten', 'log') === array_keys($GLOBALS['BE_MOD']['system']), $fehler);
+pruefe('Model in TL_MODELS eingetragen', isset($GLOBALS['TL_MODELS']['tl_metadaten']) && is_subclass_of($GLOBALS['TL_MODELS']['tl_metadaten'], 'Contao\Model'), $fehler);
 pruefe('Stylesheet außerhalb des Backends nicht geladen', array() === $GLOBALS['TL_CSS'], $fehler);
 pruefe('Helfer::requestToken() ohne Dienst liefert leeren Text', '' === Schachbulle\ContaoMetadatenBundle\Classes\Helfer::requestToken(), $fehler);
 
-// 4. Modulklasse: Contao erzeugt sie mit new Klasse($dc) und ruft generate()
+// 4. DCA laden. Dabei werden DC_Table::class, die DataContainer-Konstanten
+//    und die Rückrufklasse (extends Backend) tatsächlich aufgelöst.
+echo "\nDCA tl_metadaten\n";
+$GLOBALS['TL_DCA'] = array();
+require $bundle.'/src/Resources/contao/dca/tl_metadaten.php';
+$dca = $GLOBALS['TL_DCA']['tl_metadaten'] ?? array();
+
+pruefe('DCA geladen', array() !== $dca, $fehler);
+pruefe('dataContainer ist DC_Table::class', 'Contao\DC_Table' === ($dca['config']['dataContainer'] ?? ''), $fehler);
+pruefe('Ordner ist ein fileTree nur für Ordner', 'fileTree' === ($dca['fields']['ordner']['inputType'] ?? '') && false === ($dca['fields']['ordner']['eval']['files'] ?? null), $fehler);
+pruefe('keine children-Operation', !isset($dca['list']['operations']['children']), $fehler);
+pruefe('Operation vorschau zeigt auf key=vorschau', 'key=vorschau' === ($dca['list']['operations']['vorschau']['href'] ?? ''), $fehler);
+
+$ohneSql = array();
+
+foreach ($dca['fields'] as $feld => $definition)
+{
+	if (!isset($definition['sql']))
+	{
+		$ohneSql[] = $feld;
+	}
+}
+
+pruefe('jedes Feld hat eine sql-Definition', array() === $ohneSql, $fehler);
+
+$palettenfelder = array();
+
+foreach (array_merge(array($dca['palettes']['default']), array_values($dca['subpalettes'])) as $palette)
+{
+	foreach (preg_split('/[;,]/', preg_replace('/\{[^}]+\}/', '', $palette)) as $feld)
+	{
+		if ('' !== $feld)
+		{
+			$palettenfelder[] = $feld;
+		}
+	}
+}
+
+pruefe('alle Palettenfelder sind definiert', array() === array_diff($palettenfelder, array_keys($dca['fields'])), $fehler);
+pruefe('Subpaletten für beide Betriebsarten', isset($dca['subpalettes']['modus_ersetzen'], $dca['subpalettes']['modus_setzen']), $fehler);
+
+// Rückrufklasse: öffentlicher Konstruktor, keine Kollision mit statischen
+// Kern-Methoden (bricht unter 4.13 schon beim Laden ab)
+pruefe('Klasse tl_metadaten vorhanden', class_exists('tl_metadaten', false), $fehler);
+$refKlasse = new ReflectionClass('tl_metadaten');
+pruefe('tl_metadaten::__construct() öffentlich', $refKlasse->getConstructor()->isPublic(), $fehler);
+
+$kollisionen = array();
+
+foreach ($refKlasse->getMethods() as $methode)
+{
+	if ($methode->getDeclaringClass()->getName() !== 'tl_metadaten' || $methode->isStatic())
+	{
+		continue;
+	}
+
+	foreach (array('Contao\Backend', 'Contao\Controller', 'Contao\System') as $kern)
+	{
+		if (method_exists($kern, $methode->getName()) && (new ReflectionMethod($kern, $methode->getName()))->isStatic())
+		{
+			$kollisionen[] = $methode->getName();
+		}
+	}
+}
+
+pruefe('keine Kollision mit statischen Kern-Methoden', array() === $kollisionen, $fehler);
+
+foreach (array('getSprachen', 'getFelder', 'label') as $rueckruf)
+{
+	pruefe('Rückruf tl_metadaten::'.$rueckruf.'() vorhanden', method_exists('tl_metadaten', $rueckruf), $fehler);
+}
+
+// Die MSC.aw_*-Labels kommen im Backend aus Contaos default.xlf; hier
+// werden sie vorgegeben, damit getFelder() keine Sprachdatei laden muss
+foreach (Schachbulle\ContaoMetadatenBundle\Classes\Bearbeitung::FELDER as $feld)
+{
+	$GLOBALS['TL_LANG']['MSC']['aw_'.$feld] = ucfirst($feld);
+}
+
+$objRueckruf = $refKlasse->newInstanceWithoutConstructor();
+$felder = $objRueckruf->getFelder();
+pruefe('getFelder() liefert die fünf Metadaten-Felder', Schachbulle\ContaoMetadatenBundle\Classes\Bearbeitung::FELDER === array_keys($felder), $fehler);
+
+// 5. Modulklasse: Contao erzeugt sie mit System::importStatic() ohne Argumente
 echo "\nModulklasse\n";
-$modul = $GLOBALS['BE_MOD']['system']['metadaten']['callback'];
+$modul = $GLOBALS['BE_MOD']['system']['metadaten']['vorschau'][0];
 pruefe('Klasse '.$modul.' ladbar', class_exists($modul), $fehler);
-pruefe('generate() vorhanden', method_exists($modul, 'generate'), $fehler);
+pruefe('vorschau() vorhanden', method_exists($modul, 'vorschau'), $fehler);
+pruefe('parameterlos erzeugbar (System::importStatic)', null === (new ReflectionClass($modul))->getConstructor(), $fehler);
 
-$refKonstruktor = (new ReflectionClass($modul))->getConstructor();
-pruefe('Konstruktor nimmt den DataContainer entgegen', null !== $refKonstruktor && 1 === $refKonstruktor->getNumberOfParameters() && 0 === $refKonstruktor->getNumberOfRequiredParameters(), $fehler);
-
-// 5. Kernlogik ohne Datenbank
+// 6. Kernlogik ohne Datenbank
 echo "\nKernlogik\n";
-$auftrag = new Schachbulle\ContaoMetadatenBundle\Classes\Auftrag();
-$auftrag->felder = array('caption');
-$auftrag->suche = 'Foto: BSV';
-$auftrag->ersatz = 'Foto: Berliner Schachverband';
+$auftrag = Schachbulle\ContaoMetadatenBundle\Classes\Auftrag::ausDatensatz(array(
+	'modus'  => 'ersetzen',
+	'felder' => serialize(array('caption')),
+	'suche'  => 'Foto: BSV',
+	'ersatz' => 'Foto: Berliner Schachverband',
+	'gross'  => '1',
+));
 
 $alt = array('de' => array('title' => 'Titel', 'alt' => '', 'link' => '', 'caption' => 'Foto: BSV', 'license' => ''));
 $neu = Schachbulle\ContaoMetadatenBundle\Classes\Bearbeitung::anwenden($alt, $auftrag);
+pruefe('Auftrag aus Datensatz besteht die Prüfung', array() === Schachbulle\ContaoMetadatenBundle\Classes\Bearbeitung::pruefen($auftrag), $fehler);
 pruefe('Ersetzen in der Bildunterschrift', 'Foto: Berliner Schachverband' === $neu['de']['caption'], $fehler);
 pruefe('genau ein Unterschied gemeldet', 1 === \count(Schachbulle\ContaoMetadatenBundle\Classes\Bearbeitung::unterschiede($alt, $neu)), $fehler);
-pruefe('Auftrag besteht die Prüfung', array() === Schachbulle\ContaoMetadatenBundle\Classes\Bearbeitung::pruefen($auftrag), $fehler);
 
-// 6. Template übersetzen
+// 7. Template übersetzen
 echo "\nTemplate\n";
 $template = $bundle.'/src/Resources/contao/templates/be_metadaten.html5';
 exec(escapeshellarg(PHP_BINARY).' -l '.escapeshellarg($template).' 2>&1', $ausgabe, $status);
 pruefe('be_metadaten.html5 syntaktisch in Ordnung', 0 === $status, $fehler);
 
-// 7. Dienste, die das Bundle zur Laufzeit holt
+// 8. Dienste, die das Bundle zur Laufzeit holt
 echo "\nDienste im kompilierten Behälter\n";
 $container = null;
 $treffer = glob($root.'/var/cache/prod/Container*/*Container.php');

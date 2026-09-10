@@ -1,5 +1,16 @@
 # Metadaten Changelog
 
+## Version 1.1.0 (2026-09-10)
+
+**Datenbankaktualisierung nötig** (neue Tabelle `tl_metadaten`).
+
+* Add: Aufträge werden in der neuen Tabelle `tl_metadaten` gespeichert und über Contaos DC_Table bearbeitet — der Ordner wird damit im echten Dateibaum der Dateiverwaltung gewählt, der jeden Zweig erst beim Aufklappen lädt
+* Add: Aufträge lassen sich duplizieren, wiederverwenden und beliebig oft mit Vorschau ausführen
+* Add: Operation „Vorschau und Ausführen“ in der Auftragsliste; die Vorschauseite zeigt oben die Einstellungen des Auftrags, darunter die Änderungen je Datei
+* Change: Die Betriebsart blendet über Subpaletten nur noch die passenden Felder ein
+* Fix: Die Ordnerauswahl als Auswahlliste aller Ordner (Chosen) legte bei großen Dateiverwaltungen den Browser lahm; sie ist ersatzlos durch den Dateibaum abgelöst
+* Fix: Ein Auftrag, dessen Ordner außerhalb der Dateifreigaben des ausführenden Benutzers liegt, wird mit Meldung abgewiesen
+
 ## Version 1.0.1 (2026-09-10)
 
 * Change: Die Ordnerauswahl ist jetzt eine durchsuchbare Auswahl (Chosen in Contao 4.13, Choices in Contao 5) — bei vielen Ordnern lässt sich der gewünschte per Tippen finden, statt die ganze Liste zu durchscrollen

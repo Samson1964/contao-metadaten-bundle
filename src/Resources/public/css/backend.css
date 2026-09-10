@@ -7,19 +7,21 @@
  * Vorschautabelle mit Vorher/Nachher nicht mitbringt.
  */
 
-.metadaten-einleitung p {
-	max-width: 900px;
+.metadaten-zusammenfassung table {
+	border-collapse: collapse;
 }
 
-.metadaten-block {
-	margin-top: 12px;
-	padding-top: 6px;
-	border-top: 1px solid var(--border, #ddd);
+.metadaten-zusammenfassung th,
+.metadaten-zusammenfassung td {
+	padding: 3px 12px 3px 0;
+	vertical-align: top;
+	text-align: left;
+	font-size: .8rem;
 }
 
-.metadaten-blocktitel h3 {
-	font-size: .9rem;
+.metadaten-zusammenfassung th {
 	font-weight: 600;
+	white-space: nowrap;
 	color: var(--text-secondary, #666);
 }
 
