@@ -1,5 +1,10 @@
 # Metadaten Changelog
 
+## Version 1.0.1 (2026-09-10)
+
+* Change: Die Ordnerauswahl ist jetzt eine durchsuchbare Auswahl (Chosen in Contao 4.13, Choices in Contao 5) — bei vielen Ordnern lässt sich der gewünschte per Tippen finden, statt die ganze Liste zu durchscrollen
+* Fix: Einleitung, Zwischenüberschriften „Suchen und ersetzen“ / „Werte setzen“, Vorschau und Ergebnisliste standen außerhalb eines `widget`-Blocks und hingen am linken Rand
+
 ## Version 1.0.0 (2026-09-10)
 
 Erste lauffähige Fassung. Die Versionen 0.0.x enthielten nur ein aus dem

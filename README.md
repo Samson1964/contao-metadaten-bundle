@@ -36,7 +36,7 @@ unter „Erlaubte Module“ freigeschaltet bekommen.
 
 | Feld | Bedeutung |
 | --- | --- |
-| Ordner | Ein Ordner aus der Dateiverwaltung oder „alle Dateien“ |
+| Ordner | Ein Ordner aus der Dateiverwaltung oder „alle Dateien“; die Auswahl ist durchsuchbar, Tippen filtert die Liste |
 | Unterordner einschließen | Auch Dateien in allen Unterordnern bearbeiten |
 | Dateiendungen | Nur Dateien mit diesen Endungen, z. B. `jpg, png`; leer für alle |
 | Sprache | Eine aktivierte Backend-Sprache oder „alle vorhandenen Sprachen“ |

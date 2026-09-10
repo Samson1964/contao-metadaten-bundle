@@ -25,16 +25,18 @@ $sc = static function ($wert): string { return StringUtil::specialchars((string)
 <?= $this->meldungen ?>
 
 <?php if (null !== $this->ergebnis): ?>
-	<div class="tl_listing_container metadaten-ergebnis">
-		<?php if ($this->ergebnis): ?>
-			<p class="tl_info"><?= $sc(sprintf($t['ergebnisListe'] ?? '%d Dateien:', \count($this->ergebnis))) ?></p>
-			<ul class="metadaten-dateiliste">
-				<?php foreach ($this->ergebnis as $pfad): ?>
-					<li><?= $sc($pfad) ?></li>
-				<?php endforeach; ?>
-			</ul>
-		<?php endif; ?>
-	</div>
+	<?php if ($this->ergebnis): ?>
+		<div class="tl_formbody_edit metadaten-ergebnis">
+			<div class="widget clr">
+				<p class="tl_info"><?= $sc(sprintf($t['ergebnisListe'] ?? '%d Dateien:', \count($this->ergebnis))) ?></p>
+				<ul class="metadaten-dateiliste">
+					<?php foreach ($this->ergebnis as $pfad): ?>
+						<li><?= $sc($pfad) ?></li>
+					<?php endforeach; ?>
+				</ul>
+			</div>
+		</div>
+	<?php endif; ?>
 <?php endif; ?>
 
 <form id="<?= $this->formular ?>" class="tl_form tl_edit_form metadaten-formular" method="post" action="<?= $this->action ?>">
@@ -42,19 +44,24 @@ $sc = static function ($wert): string { return StringUtil::specialchars((string)
 	<input type="hidden" name="FORM_SUBMIT" value="<?= $this->formular ?>">
 	<input type="hidden" name="REQUEST_TOKEN" value="<?= $this->requestToken ?>">
 
-	<p class="tl_help metadaten-einleitung"><?= $t['einleitung'] ?? '' ?></p>
+	<div class="widget clr metadaten-einleitung">
+		<p class="tl_help"><?= $t['einleitung'] ?? '' ?></p>
+	</div>
 
 	<fieldset class="tl_tbox">
 		<legend><?= $sc($t['legendAuswahl'] ?? 'Auswahl') ?></legend>
 
 		<div class="widget w50">
 			<h3><label for="ctrl_ordner"><?= $sc($t['ordner'][0] ?? 'Ordner') ?></label></h3>
-			<select name="ordner" id="ctrl_ordner" class="tl_select">
-				<option value=""<?= '' === $w['ordner'] ? ' selected' : '' ?>><?= $sc($t['alleOrdner'] ?? 'alle Dateien') ?></option>
-				<?php foreach ($this->ordner as $pfad => $name): ?>
-					<option value="<?= $sc($pfad) ?>"<?= $pfad === $w['ordner'] ? ' selected' : '' ?>><?= $sc($name) ?></option>
-				<?php endforeach; ?>
-			</select>
+			<?php // Suchbare Auswahl: Contao 4.13 aktiviert Chosen über die Klasse tl_chosen, Contao 5 über die Hülle mit data-controller ?>
+			<div class="tl_select_wrapper" data-controller="contao--choices">
+				<select name="ordner" id="ctrl_ordner" class="tl_select tl_chosen">
+					<option value=""<?= '' === $w['ordner'] ? ' selected' : '' ?>><?= $sc($t['alleOrdner'] ?? 'alle Dateien') ?></option>
+					<?php foreach ($this->ordner as $pfad => $name): ?>
+						<option value="<?= $sc($pfad) ?>"<?= $pfad === $w['ordner'] ? ' selected' : '' ?>><?= $sc($name) ?></option>
+					<?php endforeach; ?>
+				</select>
+			</div>
 			<p class="tl_help tl_tip"><?= $sc($t['ordner'][1] ?? '') ?></p>
 		</div>
 
@@ -116,7 +123,9 @@ $sc = static function ($wert): string { return StringUtil::specialchars((string)
 		</div>
 
 		<div class="metadaten-block">
-			<h3 class="metadaten-blocktitel"><?= $sc($t['modusErsetzen'] ?? 'Suchen und ersetzen') ?></h3>
+			<div class="widget clr metadaten-blocktitel">
+				<h3><?= $sc($t['modusErsetzen'] ?? 'Suchen und ersetzen') ?></h3>
+			</div>
 
 			<div class="widget w50 clr">
 				<h3><label for="ctrl_suche"><?= $sc($t['suche'][0] ?? 'Suchen nach') ?></label></h3>
@@ -148,7 +157,9 @@ $sc = static function ($wert): string { return StringUtil::specialchars((string)
 		</div>
 
 		<div class="metadaten-block">
-			<h3 class="metadaten-blocktitel"><?= $sc($t['modusSetzen'] ?? 'Werte setzen') ?></h3>
+			<div class="widget clr metadaten-blocktitel">
+				<h3><?= $sc($t['modusSetzen'] ?? 'Werte setzen') ?></h3>
+			</div>
 
 			<?php foreach ($this->felder as $feld => $name): ?>
 				<div class="widget<?= 'caption' === $feld ? ' clr long' : ' w50' ?>">
@@ -176,14 +187,18 @@ $sc = static function ($wert): string { return StringUtil::specialchars((string)
 			<legend><?= $sc($t['legendVorschau'] ?? 'Vorschau') ?></legend>
 
 			<?php if (0 === $this->vorschau['anzahl']): ?>
-				<p class="tl_info"><?= $sc(sprintf($t['keineTreffer'] ?? 'Keine Änderungen in %d Dateien.', $this->vorschau['gesamt'])) ?></p>
+				<div class="widget clr">
+					<p class="tl_info"><?= $sc(sprintf($t['keineTreffer'] ?? 'Keine Änderungen in %d Dateien.', $this->vorschau['gesamt'])) ?></p>
+				</div>
 			<?php else: ?>
-				<p class="tl_info"><?= $sc(sprintf($t['treffer'] ?? '%d von %d Dateien werden geändert.', $this->vorschau['anzahl'], $this->vorschau['gesamt'])) ?></p>
-				<?php if ($this->vorschau['gekuerzt']): ?>
-					<p class="tl_help"><?= $sc(sprintf($t['gekuerzt'] ?? 'Es werden nur die ersten %d Dateien angezeigt.', \count($this->vorschau['zeilen']))) ?></p>
-				<?php endif; ?>
+				<div class="widget clr">
+					<p class="tl_info"><?= $sc(sprintf($t['treffer'] ?? '%d von %d Dateien werden geändert.', $this->vorschau['anzahl'], $this->vorschau['gesamt'])) ?></p>
+					<?php if ($this->vorschau['gekuerzt']): ?>
+						<p class="tl_help"><?= $sc(sprintf($t['gekuerzt'] ?? 'Es werden nur die ersten %d Dateien angezeigt.', \count($this->vorschau['zeilen']))) ?></p>
+					<?php endif; ?>
+				</div>
 
-				<div class="metadaten-tabelle">
+				<div class="widget clr metadaten-tabelle">
 					<table class="tl_listing">
 						<thead>
 							<tr>

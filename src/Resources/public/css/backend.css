@@ -1,24 +1,23 @@
 /*
  * Stile der Modulseite „Metadaten“ im Contao-Backend.
  *
- * Bewusst knapp: Formularfelder, Fieldsets und Tabellen kommen aus Contaos
- * eigenem Backend-Stylesheet (4.13 und 5.x). Hier steht nur, was Contao
- * für eine Vorschautabelle mit Vorher/Nachher nicht mitbringt.
+ * Bewusst knapp: Abstände, Formularfelder, Fieldsets und Tabellen kommen aus
+ * Contaos eigenem Backend-Stylesheet (4.13 und 5.x) — alles Sichtbare steht
+ * deshalb in einem .widget-Block. Hier steht nur, was Contao für eine
+ * Vorschautabelle mit Vorher/Nachher nicht mitbringt.
  */
 
-.metadaten-einleitung {
-	margin: 0 15px 12px;
+.metadaten-einleitung p {
 	max-width: 900px;
 }
 
 .metadaten-block {
-	margin: 12px 0 0;
+	margin-top: 12px;
 	padding-top: 6px;
 	border-top: 1px solid var(--border, #ddd);
 }
 
-.metadaten-blocktitel {
-	margin: 6px 15px 0;
+.metadaten-blocktitel h3 {
 	font-size: .9rem;
 	font-weight: 600;
 	color: var(--text-secondary, #666);
@@ -26,7 +25,6 @@
 
 .metadaten-tabelle {
 	overflow-x: auto;
-	margin: 0 15px 12px;
 }
 
 .metadaten-tabelle table {
@@ -58,7 +56,7 @@
 }
 
 .metadaten-dateiliste {
-	margin: 0 15px 12px;
+	margin: 6px 0 0;
 	padding: 0 0 0 18px;
 	max-height: 240px;
 	overflow-y: auto;
