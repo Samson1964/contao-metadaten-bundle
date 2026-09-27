@@ -113,14 +113,16 @@ $GLOBALS['TL_DCA']['tl_metadaten'] = array
 	'palettes' => array
 	(
 		'__selector__'                  => array('modus'),
-		'default'                       => '{titel_legend},titel;{auswahl_legend},ordner,unterordner,endungen,sprache,felder;{modus_legend},modus',
+		'default'                       => '{titel_legend},titel;{auswahl_legend},ordner,unterordner,endungen;{modus_legend},modus;{bild_legend},wichtigerTeil',
 	),
 
-	// Subpalettes: Ein Select mit __selector__ schaltet über feldname_wert um
+	// Subpalettes: Ein Select mit __selector__ schaltet über feldname_wert um.
+	// Sprache und Felder gehören zu den beiden Betriebsarten, die Metadaten
+	// ändern; bei „keine“ gibt es nichts davon und deshalb keine Subpalette.
 	'subpalettes' => array
 	(
-		'modus_' . Auftrag::MODUS_ERSETZEN => 'suche,ersatz,gross,regex',
-		'modus_' . Auftrag::MODUS_SETZEN   => 'wert_title,wert_alt,wert_link,wert_caption,wert_license,nurLeere',
+		'modus_' . Auftrag::MODUS_ERSETZEN => 'sprache,felder,suche,ersatz,gross,regex',
+		'modus_' . Auftrag::MODUS_SETZEN   => 'sprache,felder,wert_title,wert_alt,wert_link,wert_caption,wert_license,nurLeere',
 	),
 
 	// Fields
@@ -194,7 +196,7 @@ $GLOBALS['TL_DCA']['tl_metadaten'] = array
 			'label'                     => &$GLOBALS['TL_LANG']['tl_metadaten']['modus'],
 			'exclude'                   => true,
 			'inputType'                 => 'select',
-			'options'                   => array(Auftrag::MODUS_ERSETZEN, Auftrag::MODUS_SETZEN),
+			'options'                   => array(Auftrag::MODUS_ERSETZEN, Auftrag::MODUS_SETZEN, Auftrag::MODUS_KEINE),
 			'reference'                 => &$GLOBALS['TL_LANG']['tl_metadaten']['modusOptionen'],
 			'default'                   => Auftrag::MODUS_ERSETZEN,
 			'eval'                      => array('submitOnChange' => true, 'tl_class' => 'w50'),
@@ -275,6 +277,16 @@ $GLOBALS['TL_DCA']['tl_metadaten'] = array
 			'inputType'                 => 'textarea',
 			'eval'                      => array('decodeEntities' => true, 'allowHtml' => true, 'style' => 'height:60px', 'tl_class' => 'clr'),
 			'sql'                       => "text NULL"
+		),
+		// Wirkt unabhängig von der Betriebsart und nur auf Bilder, die noch
+		// keinen wichtigen Teil haben (importantPartWidth/-Height gleich 0)
+		'wichtigerTeil' => array
+		(
+			'label'                     => &$GLOBALS['TL_LANG']['tl_metadaten']['wichtigerTeil'],
+			'exclude'                   => true,
+			'inputType'                 => 'checkbox',
+			'eval'                      => array('tl_class' => 'clr'),
+			'sql'                       => "char(1) NOT NULL default ''"
 		),
 		'nurLeere' => array
 		(

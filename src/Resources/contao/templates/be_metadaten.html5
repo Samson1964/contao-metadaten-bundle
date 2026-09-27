@@ -15,6 +15,9 @@ use Contao\StringUtil;
 
 $t = $this->texte;
 $sc = static function ($wert): string { return StringUtil::specialchars((string) $wert); };
+
+// Bruchteil als Prozentzahl mit Dezimalpunkt, unabhängig von der Locale
+$pz = static function ($bruchteil): string { return number_format((float) $bruchteil * 100, 2, '.', ''); };
 ?>
 <div id="tl_buttons">
 	<a href="<?= $this->zurueck ?>" class="header_back" title="<?= $sc($GLOBALS['TL_LANG']['MSC']['backBTTitle'] ?? '') ?>" accesskey="b"><?= $GLOBALS['TL_LANG']['MSC']['backBT'] ?? 'Zurück' ?></a>
@@ -58,7 +61,39 @@ $sc = static function ($wert): string { return StringUtil::specialchars((string)
 		</fieldset>
 	<?php endif; ?>
 
-	<?php if (null !== $this->vorschau): ?>
+	<?php if (null !== $this->bildteil): ?>
+		<fieldset class="tl_box metadaten-bildteil">
+			<legend><?= $sc($t['legendBildteil'] ?? 'Wichtiger Bildteil') ?></legend>
+
+			<div class="widget clr">
+				<?php if (!$this->bildteil['verfuegbar']): ?>
+					<p class="tl_error"><?= $sc($t['fehler']['keinGd'] ?? 'Die PHP-Erweiterung GD fehlt.') ?></p>
+				<?php elseif (0 === $this->bildteil['anzahl']): ?>
+					<p class="tl_info"><?= $sc($t['bildteilKeine'] ?? 'Alle ausgewählten Bilder haben bereits einen wichtigen Teil.') ?></p>
+				<?php else: ?>
+					<p class="tl_info"><?= $sc(sprintf($t['bildteilAnzahl'] ?? '%d Bilder ohne wichtigen Teil.', $this->bildteil['anzahl'])) ?></p>
+					<p class="tl_help"><?= $sc(sprintf($t['bildteilHinweis'] ?? 'Beispiele: %d', \count($this->bildteil['beispiele']))) ?></p>
+				<?php endif; ?>
+			</div>
+
+			<?php if ($this->bildteil['verfuegbar'] && $this->bildteil['beispiele']): ?>
+				<div class="widget clr metadaten-bilder">
+					<?php foreach ($this->bildteil['beispiele'] as $beispiel): ?>
+						<figure class="metadaten-bild">
+							<?php // Das Rechteck liegt mit Prozentangaben über dem Bild, passt sich also jeder Darstellungsgröße an ?>
+							<div class="metadaten-bildrahmen">
+								<img src="<?= $sc($beispiel['url']) ?>" alt="" loading="lazy">
+								<span class="metadaten-teil" style="left:<?= $pz($beispiel['teil']['x']) ?>%;top:<?= $pz($beispiel['teil']['y']) ?>%;width:<?= $pz($beispiel['teil']['width']) ?>%;height:<?= $pz($beispiel['teil']['height']) ?>%"></span>
+							</div>
+							<figcaption><?= $sc(basename($beispiel['path'])) ?></figcaption>
+						</figure>
+					<?php endforeach; ?>
+				</div>
+			<?php endif; ?>
+		</fieldset>
+	<?php endif; ?>
+
+	<?php if (null !== $this->vorschau && $this->vorschau['metadaten']): ?>
 		<fieldset class="tl_box metadaten-vorschau">
 			<legend><?= $sc($t['legendVorschau'] ?? 'Vorschau der Änderungen') ?></legend>
 
@@ -105,10 +140,10 @@ $sc = static function ($wert): string { return StringUtil::specialchars((string)
 	<?php endif; ?>
 </div>
 
-<?php if (null !== $this->vorschau && $this->vorschau['anzahl'] > 0): ?>
+<?php if ($this->ausfuehrbar): ?>
 	<div class="tl_formbody_submit">
 		<div class="tl_submit_container">
-			<button type="submit" name="ausfuehren" id="ausfuehren" class="tl_submit metadaten-ausfuehren" value="1" accesskey="s"><?= $sc(sprintf($t['ausfuehren'] ?? '%d Dateien jetzt ändern', $this->vorschau['anzahl'])) ?></button>
+			<button type="submit" name="ausfuehren" id="ausfuehren" class="tl_submit metadaten-ausfuehren" value="1" accesskey="s"><?= $sc($t['ausfuehren'] ?? 'Auftrag jetzt ausführen') ?></button>
 		</div>
 	</div>
 <?php endif; ?>

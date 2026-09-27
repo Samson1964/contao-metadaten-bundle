@@ -24,6 +24,8 @@ use Contao\System;
 use Contao\Versions;
 use Schachbulle\ContaoMetadatenBundle\Classes\Auftrag;
 use Schachbulle\ContaoMetadatenBundle\Classes\Bearbeitung;
+use Schachbulle\ContaoMetadatenBundle\Classes\Bildanalyse;
+use Schachbulle\ContaoMetadatenBundle\Classes\Bildteil;
 use Schachbulle\ContaoMetadatenBundle\Classes\Helfer;
 use Schachbulle\ContaoMetadatenBundle\Model\MetadatenModel;
 
@@ -42,6 +44,11 @@ use Schachbulle\ContaoMetadatenBundle\Model\MetadatenModel;
  *    Mit POST „ausführen“: Änderungen mit einer Version je Datei schreiben,
  *    Ergebnis in der Sitzung merken und auf dieselbe Adresse umleiten, damit
  *    ein Neuladen der Seite die Änderung nicht ein zweites Mal ausführt.
+ *
+ * Ist im Auftrag „Wichtigen Bildteil automatisch markieren“ gesetzt, kommen
+ * die Bilder ohne wichtigen Teil hinzu: Die Vorschau zeigt für die ersten
+ * davon das geschätzte Rechteck, die Ausführung markiert so viele, wie in
+ * das Zeitbudget passen. Bilder mit wichtigem Teil werden nie angefasst.
  *
  * Rechte: Wer das Modul sieht, entscheidet Contao über die Modulrechte der
  * Benutzergruppe. Zusätzlich bleibt die Dateiauswahl für Nicht-Administratoren
@@ -64,6 +71,16 @@ class Metadaten
 	 * Höchstzahl der Dateien, deren Änderungen in der Vorschau aufgelistet werden
 	 */
 	private const VORSCHAU_MAX = 200;
+
+	/**
+	 * Höchstzahl der Bilder, für die die Vorschau den geschätzten wichtigen Teil zeigt
+	 */
+	private const BEISPIELE_MAX = 12;
+
+	/**
+	 * Obergrenze in Sekunden für die Bildanalyse je Ausführung
+	 */
+	private const ZEITBUDGET = 20.0;
 
 	/**
 	 * Baut die Vorschauseite eines Auftrags und führt ihn auf Wunsch aus.
@@ -120,20 +137,23 @@ class Metadaten
 			}
 		}
 
+		$bildteil = null;
+
 		if (!$fehler)
 		{
 			$dateien = $this->dateien($row, $ordnerPfad, $freigaben);
 			$aenderungen = $this->aenderungen($dateien, $auftrag, $fehler);
+			$kandidaten = $auftrag->wichtigerTeil ? Bildteil::kandidaten($dateien) : array();
 
 			if (!$fehler && self::FORMULAR === Input::post('FORM_SUBMIT'))
 			{
-				$anzahl = $this->schreiben($aenderungen);
+				$geschrieben = $this->ausfuehren($aenderungen, $kandidaten);
 
-				Message::addConfirmation(sprintf($texte['erledigt'] ?? '%d Dateien geändert.', $anzahl));
+				$this->meldeErgebnis($geschrieben, \count($kandidaten));
 
 				$sitzung->set(self::SITZUNG, array(
 					'id'      => $id,
-					'dateien' => array_column($aenderungen, 'path'),
+					'dateien' => $geschrieben['dateien'],
 				));
 
 				throw new RedirectResponseException($request->getRequestUri());
@@ -144,7 +164,17 @@ class Metadaten
 				'anzahl'   => \count($aenderungen),
 				'zeilen'   => \array_slice($aenderungen, 0, self::VORSCHAU_MAX),
 				'gekuerzt' => \count($aenderungen) > self::VORSCHAU_MAX,
+				'metadaten' => Auftrag::MODUS_KEINE !== $auftrag->modus,
 			);
+
+			if ($auftrag->wichtigerTeil)
+			{
+				$bildteil = array(
+					'anzahl'     => \count($kandidaten),
+					'verfuegbar' => Bildanalyse::verfuegbar(),
+					'beispiele'  => $this->beispiele($kandidaten),
+				);
+			}
 		}
 
 		foreach ($fehler as $meldung)
@@ -158,6 +188,8 @@ class Metadaten
 		$template->zusammenfassung = $this->zusammenfassung($row, $auftrag, $ordnerPfad);
 		$template->felder = $this->feldbezeichnungen();
 		$template->vorschau = $vorschau;
+		$template->bildteil = $bildteil;
+		$template->ausfuehrbar = null !== $vorschau && ($vorschau['anzahl'] > 0 || (null !== $bildteil && $bildteil['anzahl'] > 0 && $bildteil['verfuegbar']));
 		$template->ergebnis = $ergebnis;
 		$template->meldungen = Message::generate();
 		$template->requestToken = Helfer::requestToken();
@@ -327,8 +359,11 @@ class Metadaten
 		}
 
 		$result = Database::getInstance()
-			->prepare('SELECT id, path, meta FROM tl_files WHERE ' . implode(' AND ', $bedingungen) . ' ORDER BY path')
-			->execute($parameter);
+			->prepare('SELECT id, path, extension, meta, importantPartWidth, importantPartHeight FROM tl_files WHERE ' . implode(' AND ', $bedingungen) . ' ORDER BY path')
+			// Mit ... entpacken: Contao 5 reicht ein übergebenes Feld nicht mehr
+			// als Parameterliste durch, sondern als einen einzigen Parameter —
+			// die Abfrage fände dort keine einzige Datei
+			->execute(...$parameter);
 
 		return $result->fetchAllAssoc();
 	}
@@ -428,7 +463,76 @@ class Metadaten
 	}
 
 	/**
-	 * Schreibt die berechneten Änderungen in tl_files.
+	 * Führt den Auftrag aus: Metadaten schreiben und wichtige Bildteile markieren.
+	 *
+	 * Die Metadaten aller Dateien werden immer vollständig geschrieben, das
+	 * ist reine Datenbankarbeit. Die Bildanalyse dagegen kostet je Bild
+	 * Rechenzeit (Vorschaubild erzeugen) und läuft deshalb nur, solange das
+	 * Zeitbudget reicht. Was übrig bleibt, holt ein erneutes Ausführen nach:
+	 * Erledigte Bilder haben dann einen wichtigen Teil und sind keine
+	 * Kandidaten mehr.
+	 *
+	 * Hat eine Datei sowohl neue Metadaten als auch einen neuen wichtigen
+	 * Teil, entsteht daraus eine einzige Änderung mit einer Version.
+	 *
+	 * @param array<int, array{id: int, path: string, neu: array, unterschiede: array}> $aenderungen Änderungen aus aenderungen()
+	 * @param array<int, array{id: int, path: string}>                                  $kandidaten  Bilder ohne wichtigen Teil
+	 *
+	 * @return array{metadaten: int, markiert: int, versucht: int, dateien: string[]}
+	 *         Anzahl der Dateien mit geänderten Metadaten, der markierten und
+	 *         der insgesamt untersuchten Bilder sowie die Pfade aller
+	 *         geänderten Dateien
+	 */
+	private function ausfuehren(array $aenderungen, array $kandidaten): array
+	{
+		$auftraege = array();
+
+		foreach ($aenderungen as $aenderung)
+		{
+			$auftraege[$aenderung['id']] = array('path' => $aenderung['path'], 'meta' => $aenderung['neu'], 'teil' => null);
+		}
+
+		$ende = microtime(true) + $this->zeitbudget();
+		$versucht = 0;
+		$markiert = 0;
+
+		foreach ($kandidaten as $kandidat)
+		{
+			if (microtime(true) >= $ende)
+			{
+				break;
+			}
+
+			++$versucht;
+			$fund = Bildteil::ermitteln($kandidat['path']);
+
+			if (null === $fund)
+			{
+				continue;
+			}
+
+			++$markiert;
+
+			if (!isset($auftraege[$kandidat['id']]))
+			{
+				$auftraege[$kandidat['id']] = array('path' => $kandidat['path'], 'meta' => null, 'teil' => null);
+			}
+
+			$auftraege[$kandidat['id']]['teil'] = $fund['teil'];
+		}
+
+		$this->schreiben($auftraege);
+
+		return array(
+			'metadaten' => \count($aenderungen),
+			'markiert'  => $markiert,
+			'versucht'  => $versucht,
+			'dateien'   => array_column($auftraege, 'path'),
+		);
+	}
+
+	/**
+	 * Schreibt die Änderungen in tl_files.
 	 *
 	 * Vor jeder Änderung wird mit Contaos Versions-Klasse der bisherige Stand
 	 * gesichert und danach eine neue Version angelegt — so lässt sich jede
@@ -436,28 +540,134 @@ class Metadaten
 	 * genau wie nach einer Bearbeitung von Hand. tl_files hat die
 	 * Versionierung im Kern eingeschaltet.
 	 *
-	 * @param array<int, array{id: int, path: string, neu: array, unterschiede: array}> $aenderungen Änderungen aus aenderungen()
-	 *
-	 * @return int Anzahl der geänderten Dateien
+	 * @param array<int, array{path: string, meta: array|null, teil: array|null}> $auftraege
+	 *        Je Datei-ID die neuen Metadaten und/oder der neue wichtige Teil;
+	 *        null heißt „unverändert lassen“
 	 */
-	private function schreiben(array $aenderungen): int
+	private function schreiben(array $auftraege): void
 	{
 		$db = Database::getInstance();
-		$anzahl = 0;
 
-		foreach ($aenderungen as $aenderung)
+		foreach ($auftraege as $id => $auftrag)
 		{
-			$versionen = new Versions('tl_files', $aenderung['id']);
+			$werte = array('tstamp' => time());
+
+			if (null !== $auftrag['meta'])
+			{
+				$werte['meta'] = serialize($auftrag['meta']);
+			}
+
+			if (null !== $auftrag['teil'])
+			{
+				// Als Text mit Dezimalpunkt übergeben: Unter PHP 7.4 hängt die
+				// Umwandlung von Kommazahlen in Text von der Locale ab und
+				// könnte sonst „0,4583“ in die Abfrage schreiben
+				$werte['importantPartX'] = number_format($auftrag['teil']['x'], 4, '.', '');
+				$werte['importantPartY'] = number_format($auftrag['teil']['y'], 4, '.', '');
+				$werte['importantPartWidth'] = number_format($auftrag['teil']['width'], 4, '.', '');
+				$werte['importantPartHeight'] = number_format($auftrag['teil']['height'], 4, '.', '');
+			}
+
+			$versionen = new Versions('tl_files', $id);
 			$versionen->initialize();
 
-			$db->prepare('UPDATE tl_files SET tstamp=?, meta=? WHERE id=?')
-				->execute(time(), serialize($aenderung['neu']), $aenderung['id']);
+			$db->prepare('UPDATE tl_files %s WHERE id=?')
+				->set($werte)
+				->execute($id);
 
 			$versionen->create();
-			++$anzahl;
+		}
+	}
+
+	/**
+	 * Legt fest, wie viele Sekunden die Bildanalyse beim Ausführen laufen darf.
+	 *
+	 * Höchstens 20 Sekunden, und nie mehr als die Hälfte der erlaubten
+	 * Laufzeit des Skripts — die andere Hälfte bleibt für das Schreiben der
+	 * Versionen und den Seitenaufbau.
+	 *
+	 * @return float Zeitbudget in Sekunden
+	 */
+	private function zeitbudget(): float
+	{
+		$grenze = (int) \ini_get('max_execution_time');
+
+		if ($grenze <= 0)
+		{
+			return self::ZEITBUDGET;
 		}
 
-		return $anzahl;
+		return min(self::ZEITBUDGET, $grenze / 2);
+	}
+
+	/**
+	 * Schätzt für die ersten Kandidaten den wichtigen Teil, damit die Vorschau Beispiele zeigen kann.
+	 *
+	 * Gespeichert wird dabei nichts außer den Vorschaubildern im Bildcache.
+	 * Die Zahl der Beispiele und die Rechenzeit sind begrenzt, damit die
+	 * Vorschau auch bei tausenden Bildern zügig erscheint.
+	 *
+	 * @param array<int, array{id: int, path: string}> $kandidaten Bilder ohne wichtigen Teil
+	 *
+	 * @return array<int, array{path: string, url: string, teil: array{x: float, y: float, width: float, height: float}}>
+	 *         Die Beispiele mit Adresse des Vorschaubildes und wichtigem Teil
+	 */
+	private function beispiele(array $kandidaten): array
+	{
+		$liste = array();
+		$ende = microtime(true) + self::ZEITBUDGET / 2;
+
+		foreach ($kandidaten as $kandidat)
+		{
+			if (\count($liste) >= self::BEISPIELE_MAX || microtime(true) >= $ende)
+			{
+				break;
+			}
+
+			$fund = Bildteil::ermitteln($kandidat['path']);
+
+			if (null !== $fund)
+			{
+				$liste[] = array('path' => $kandidat['path'], 'url' => $fund['url'], 'teil' => $fund['teil']);
+			}
+		}
+
+		return $liste;
+	}
+
+	/**
+	 * Meldet dem Benutzer, was die Ausführung bewirkt hat.
+	 *
+	 * @param array{metadaten: int, markiert: int, versucht: int, dateien: string[]} $geschrieben Ergebnis von ausfuehren()
+	 * @param int                                                                   $kandidaten  Zahl der Bilder ohne wichtigen Teil vor der Ausführung
+	 */
+	private function meldeErgebnis(array $geschrieben, int $kandidaten): void
+	{
+		$texte = $GLOBALS['TL_LANG']['METADATEN'] ?? array();
+
+		if ($geschrieben['metadaten'] > 0)
+		{
+			Message::addConfirmation(sprintf($texte['erledigt'] ?? '%d Dateien geändert.', $geschrieben['metadaten']));
+		}
+
+		if ($geschrieben['markiert'] > 0)
+		{
+			Message::addConfirmation(sprintf($texte['markiert'] ?? '%d Bilder markiert.', $geschrieben['markiert']));
+		}
+
+		$ohneErgebnis = $geschrieben['versucht'] - $geschrieben['markiert'];
+
+		if ($ohneErgebnis > 0)
+		{
+			Message::addInfo(sprintf($texte['nichtAuswertbar'] ?? '%d Bilder nicht auswertbar.', $ohneErgebnis));
+		}
+
+		$offen = $kandidaten - $geschrieben['versucht'];
+
+		if ($offen > 0)
+		{
+			Message::addInfo(sprintf($texte['nochOffen'] ?? '%d Bilder noch offen.', $offen));
+		}
 	}
 
 	/**
@@ -493,10 +703,18 @@ class Metadaten
 		$zeilen = array(
 			array('label' => $lang['ordner'][0] ?? 'Ordner', 'wert' => $ordner),
 			array('label' => $lang['endungen'][0] ?? 'Dateiendungen', 'wert' => '' !== trim((string) $row['endungen']) ? (string) $row['endungen'] : ($lang['alleDateien'] ?? 'alle')),
-			array('label' => $lang['sprache'][0] ?? 'Sprache', 'wert' => '' !== $auftrag->sprache ? $auftrag->sprache : ($lang['alleSprachen'] ?? 'alle')),
-			array('label' => $lang['felder'][0] ?? 'Felder', 'wert' => implode(', ', $felder)),
 			array('label' => $lang['modus'][0] ?? 'Betriebsart', 'wert' => (string) ($lang['modusOptionen'][$auftrag->modus] ?? $auftrag->modus)),
+			array('label' => $lang['wichtigerTeil'][0] ?? 'Wichtigen Bildteil markieren', 'wert' => $auftrag->wichtigerTeil ? $ja : $nein),
 		);
+
+		// Ohne Änderung der Metadaten gibt es weder Sprache noch Felder zu zeigen
+		if (Auftrag::MODUS_KEINE === $auftrag->modus)
+		{
+			return $zeilen;
+		}
+
+		$zeilen[] = array('label' => $lang['sprache'][0] ?? 'Sprache', 'wert' => '' !== $auftrag->sprache ? $auftrag->sprache : ($lang['alleSprachen'] ?? 'alle'));
+		$zeilen[] = array('label' => $lang['felder'][0] ?? 'Felder', 'wert' => implode(', ', $felder));
 
 		if (Auftrag::MODUS_SETZEN === $auftrag->modus)
 		{

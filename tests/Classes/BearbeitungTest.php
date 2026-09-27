@@ -102,6 +102,22 @@ class BearbeitungTest extends TestCase
 		$this->assertSame(array('keineSprache'), Bearbeitung::pruefen($auftrag));
 	}
 
+	public function testBetriebsartKeineAendertNichtsUndBrauchtDenWichtigenTeil(): void
+	{
+		$auftrag = new Auftrag();
+		$auftrag->modus = Auftrag::MODUS_KEINE;
+
+		// Weder Metadaten noch wichtiger Teil: Der Auftrag täte gar nichts
+		$this->assertSame(array('nichtsZuTun'), Bearbeitung::pruefen($auftrag));
+
+		$auftrag->wichtigerTeil = true;
+		$this->assertSame(array(), Bearbeitung::pruefen($auftrag));
+
+		// Die Metadaten bleiben zeichengleich, auch unsortiert und mit leerer Sprache
+		$meta = array('en' => array('title' => ''), 'de' => array('title' => 'Titel'));
+		$this->assertSame($meta, Bearbeitung::anwenden($meta, $auftrag));
+	}
+
 	public function testPruefenErkenntUngueltigeRegulaereAusdruecke(): void
 	{
 		$auftrag = $this->ersetzen('(unvollständig', '');

@@ -25,6 +25,46 @@
 	color: var(--text-secondary, #666);
 }
 
+.metadaten-bilder {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 12px;
+}
+
+.metadaten-bild {
+	margin: 0;
+	max-width: 240px;
+}
+
+/* Der Rahmen umschließt das Bild genau, damit die Prozentangaben des
+   Rechtecks sich auf die Bildfläche beziehen */
+.metadaten-bildrahmen {
+	position: relative;
+	display: inline-block;
+	line-height: 0;
+}
+
+.metadaten-bildrahmen img {
+	display: block;
+	max-width: 100%;
+	height: auto;
+}
+
+.metadaten-teil {
+	position: absolute;
+	box-sizing: border-box;
+	border: 2px solid #f00;
+	box-shadow: 0 0 0 1px rgba(255, 255, 255, .8);
+	pointer-events: none;
+}
+
+.metadaten-bild figcaption {
+	margin-top: 3px;
+	font-size: .75rem;
+	color: var(--text-secondary, #666);
+	word-break: break-all;
+}
+
 .metadaten-tabelle {
 	overflow-x: auto;
 }

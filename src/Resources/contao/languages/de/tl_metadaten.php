@@ -18,7 +18,8 @@ $GLOBALS['TL_LANG']['tl_metadaten']['unterordner'] = array('Unterordner einschli
 $GLOBALS['TL_LANG']['tl_metadaten']['endungen'] = array('Dateiendungen', 'Nur Dateien mit diesen Endungen bearbeiten, durch Komma getrennt (z. B. „jpg, png“). Leer lassen für alle Dateien.');
 $GLOBALS['TL_LANG']['tl_metadaten']['sprache'] = array('Sprache', 'Beim Ersetzen: nur diese Sprache bearbeiten oder alle in den Dateien vorhandenen Sprachen. Beim Setzen von Werten ist eine Sprache Pflicht.');
 $GLOBALS['TL_LANG']['tl_metadaten']['felder'] = array('Felder', 'Nur die angehakten Felder werden bearbeitet; alle anderen bleiben unverändert.');
-$GLOBALS['TL_LANG']['tl_metadaten']['modus'] = array('Betriebsart', '„Suchen und ersetzen“ tauscht einen Text in bereits gefüllten Feldern aus. „Werte setzen“ schreibt feste Werte in die gewählten Felder.');
+$GLOBALS['TL_LANG']['tl_metadaten']['modus'] = array('Betriebsart', '„Suchen und ersetzen“ tauscht einen Text in bereits gefüllten Feldern aus. „Werte setzen“ schreibt feste Werte in die gewählten Felder. „Metadaten nicht ändern“ ist für Aufträge gedacht, die nur den wichtigen Bildteil markieren.');
+$GLOBALS['TL_LANG']['tl_metadaten']['wichtigerTeil'] = array('Wichtigen Bildteil automatisch markieren', 'Bei Bildern, die noch keinen wichtigen Teil haben, wird er aus dem Bildinhalt geschätzt (Gesichter, Details, kräftige Farben). Bereits markierte Bilder bleiben unverändert. Die Vorschau zeigt die Ergebnisse vor dem Speichern.');
 $GLOBALS['TL_LANG']['tl_metadaten']['suche'] = array('Suchen nach', 'Der zu ersetzende Text. Leere Felder werden beim Ersetzen nie angefasst.');
 $GLOBALS['TL_LANG']['tl_metadaten']['ersatz'] = array('Ersetzen durch', 'Der neue Text. Leer lassen, um den Suchtext zu entfernen. Bei regulären Ausdrücken sind Rückverweise wie $1 erlaubt.');
 $GLOBALS['TL_LANG']['tl_metadaten']['gross'] = array('Groß- und Kleinschreibung beachten', 'Abgeschaltet findet „berlin“ auch „Berlin“ und „BERLIN“.');
@@ -38,6 +39,8 @@ $GLOBALS['TL_LANG']['tl_metadaten']['alleDateien'] = 'alle Dateien';
 $GLOBALS['TL_LANG']['tl_metadaten']['ordnerFehlt'] = 'Ordner nicht mehr vorhanden';
 $GLOBALS['TL_LANG']['tl_metadaten']['modusOptionen']['ersetzen'] = 'Suchen und ersetzen';
 $GLOBALS['TL_LANG']['tl_metadaten']['modusOptionen']['setzen'] = 'Werte setzen';
+$GLOBALS['TL_LANG']['tl_metadaten']['modusOptionen']['keine'] = 'Metadaten nicht ändern';
+$GLOBALS['TL_LANG']['tl_metadaten']['mitUnterordnern'] = '(mit Unterordnern)';
 
 /*
  * Legenden
@@ -45,6 +48,7 @@ $GLOBALS['TL_LANG']['tl_metadaten']['modusOptionen']['setzen'] = 'Werte setzen';
 $GLOBALS['TL_LANG']['tl_metadaten']['titel_legend'] = 'Auftrag';
 $GLOBALS['TL_LANG']['tl_metadaten']['auswahl_legend'] = 'Auswahl der Dateien';
 $GLOBALS['TL_LANG']['tl_metadaten']['modus_legend'] = 'Bearbeitung';
+$GLOBALS['TL_LANG']['tl_metadaten']['bild_legend'] = 'Wichtiger Bildteil';
 
 /*
  * Operationen

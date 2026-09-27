@@ -68,6 +68,14 @@ class AuftragTest extends TestCase
 		$this->assertSame(array('keineFelder', 'keineSuche'), Bearbeitung::pruefen($auftrag));
 	}
 
+	public function testAusDatensatzUebernimmtDasHaekchenFuerDenWichtigenTeil(): void
+	{
+		$this->assertFalse(Auftrag::ausDatensatz(array())->wichtigerTeil);
+		$this->assertFalse(Auftrag::ausDatensatz(array('wichtigerTeil' => ''))->wichtigerTeil);
+		$this->assertTrue(Auftrag::ausDatensatz(array('wichtigerTeil' => '1'))->wichtigerTeil);
+		$this->assertSame(Auftrag::MODUS_KEINE, Auftrag::ausDatensatz(array('modus' => 'keine'))->modus);
+	}
+
 	public function testAusDatensatzVerkraftetKaputtesFelderFeld(): void
 	{
 		$this->assertSame(array(), Auftrag::ausDatensatz(array('felder' => 'kein serialisierter Text'))->felder);

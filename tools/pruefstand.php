@@ -110,6 +110,16 @@ foreach ($api as $klasse => $methode)
 }
 
 pruefe('FilesModel::findMultipleByUuids()', method_exists('Contao\FilesModel', 'findMultipleByUuids'), $fehler);
+pruefe('Message::addInfo()', method_exists('Contao\Message', 'addInfo'), $fehler);
+pruefe('Database\Statement::set()', method_exists('Contao\Database\Statement', 'set'), $fehler);
+
+// Bildfabrik und Resizer für die Vorschaubilder der Bildanalyse
+pruefe('ImageFactory::create()', method_exists('Contao\CoreBundle\Image\ImageFactory', 'create'), $fehler);
+pruefe('Schnittstelle DeferredImageInterface', interface_exists('Contao\Image\DeferredImageInterface'), $fehler);
+pruefe('DeferredResizerInterface::resizeDeferredImage()', interface_exists('Contao\Image\DeferredResizerInterface') && method_exists('Contao\Image\DeferredResizerInterface', 'resizeDeferredImage'), $fehler);
+pruefe('ImageInterface::getUrl() und getPath()', method_exists('Contao\Image\ImageInterface', 'getUrl') && method_exists('Contao\Image\ImageInterface', 'getPath'), $fehler);
+pruefe('Größenmodus box vorhanden', 'box' === Contao\Image\ResizeConfiguration::MODE_BOX, $fehler);
+pruefe('PHP-Erweiterung GD für die Bildanalyse', Schachbulle\ContaoMetadatenBundle\Classes\Bildanalyse::verfuegbar(), $fehler);
 pruefe('Input::post()', method_exists('Contao\Input', 'post'), $fehler);
 pruefe('Message::addError()', method_exists('Contao\Message', 'addError'), $fehler);
 pruefe('Message::generate()', method_exists('Contao\Message', 'generate'), $fehler);
@@ -146,7 +156,7 @@ pruefe('MOD.metadaten beschriftet', isset($GLOBALS['TL_LANG']['MOD']['metadaten'
 pruefe('METADATEN.erledigt vorhanden', isset($GLOBALS['TL_LANG']['METADATEN']['erledigt']), $fehler);
 pruefe('tl_metadaten.vorschau (Operation) beschriftet', isset($GLOBALS['TL_LANG']['tl_metadaten']['vorschau'][0]), $fehler);
 
-$fehlerschluessel = array('auftragUnbekannt', 'unbekannterModus', 'keineFelder', 'unbekanntesFeld', 'keineSuche', 'keineSprache', 'ungueltigesMuster', 'ordnerUnbekannt', 'ordnerGesperrt', 'keineFreigabe');
+$fehlerschluessel = array('nichtsZuTun', 'keinGd', 'auftragUnbekannt', 'unbekannterModus', 'keineFelder', 'unbekanntesFeld', 'keineSuche', 'keineSprache', 'ungueltigesMuster', 'ordnerUnbekannt', 'ordnerGesperrt', 'keineFreigabe');
 
 foreach ($fehlerschluessel as $schluessel)
 {
@@ -219,6 +229,9 @@ foreach (array_merge(array($dca['palettes']['default']), array_values($dca['subp
 
 pruefe('alle Palettenfelder sind definiert', array() === array_diff($palettenfelder, array_keys($dca['fields'])), $fehler);
 pruefe('Subpaletten für beide Betriebsarten', isset($dca['subpalettes']['modus_ersetzen'], $dca['subpalettes']['modus_setzen']), $fehler);
+pruefe('Betriebsart „keine“ wählbar, ohne eigene Subpalette', \in_array('keine', $dca['fields']['modus']['options'], true) && !isset($dca['subpalettes']['modus_keine']), $fehler);
+pruefe('jede Betriebsart ist beschriftet', array() === array_diff($dca['fields']['modus']['options'], array_keys($GLOBALS['TL_LANG']['tl_metadaten']['modusOptionen'])), $fehler);
+pruefe('Häkchen wichtigerTeil in der Grundpalette', false !== strpos($dca['palettes']['default'], 'wichtigerTeil') && 'checkbox' === ($dca['fields']['wichtigerTeil']['inputType'] ?? ''), $fehler);
 
 // Rückrufklasse: öffentlicher Konstruktor, keine Kollision mit statischen
 // Kern-Methoden (bricht unter 4.13 schon beim Laden ab)
@@ -315,7 +328,7 @@ else
 {
 	$inhalt = file_get_contents($container);
 
-	foreach (array('contao.intl.locales', 'contao.csrf.token_manager', 'contao.routing.scope_matcher', 'request_stack', 'router') as $dienst)
+	foreach (array('contao.intl.locales', 'contao.csrf.token_manager', 'contao.routing.scope_matcher', 'contao.image.factory', 'contao.image.resizer', 'request_stack', 'router') as $dienst)
 	{
 		pruefe($dienst.' öffentlich', false !== strpos($inhalt, "'".$dienst."' =>"), $fehler);
 	}

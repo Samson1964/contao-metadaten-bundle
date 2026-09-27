@@ -1,5 +1,18 @@
 # Metadaten Changelog
 
+## Version 1.2.0 (2026-09-27)
+
+**Datenbankaktualisierung nötig** (neue Spalte `wichtigerTeil` in `tl_metadaten`).
+
+* Add: Option „Wichtigen Bildteil automatisch markieren“ im Auftrag — bei Bildern ohne wichtigen Teil wird er aus dem Bildinhalt geschätzt (Details, Hauttöne, kräftige Farben) und zusammen mit den Metadaten in einer Version gespeichert; bereits markierte Bilder bleiben unverändert
+* Add: Die Vorschau zeigt für die ersten zwölf Bilder das geschätzte Rechteck über dem Vorschaubild
+* Add: Betriebsart „Metadaten nicht ändern“ für Aufträge, die nur den wichtigen Bildteil markieren
+* Add: Praxisprobe `tools/bildprobe.php`, die den Weg von der Dateiabfrage über Contaos Bildfabrik bis zur gespeicherten Version gegen eine echte Installation mit Datenbank prüft und hinter sich aufräumt
+* Change: Sprache und Felder stehen jetzt in den Subpaletten der beiden Betriebsarten, die Metadaten ändern
+* Change: Der Knopf auf der Vorschauseite heißt „Auftrag jetzt ausführen“, weil er neben Metadaten auch Bildteile schreiben kann
+* Fix: **Unter Contao 5 fand die Dateiabfrage keine einzige Datei**, sobald ein Ordner oder Dateiendungen gewählt waren — `Statement::execute()` entpackt dort ein übergebenes Feld nicht mehr. Die Parameter werden jetzt mit `...` übergeben. Betroffen waren die Versionen 1.0.0 bis 1.1.0; unter Contao 4.13 lief die Abfrage richtig
+* Fix: Fehlender Text „(mit Unterordnern)“ in der Zusammenfassung des Auftrags
+
 ## Version 1.1.0 (2026-09-10)
 
 **Datenbankaktualisierung nötig** (neue Tabelle `tl_metadaten`).

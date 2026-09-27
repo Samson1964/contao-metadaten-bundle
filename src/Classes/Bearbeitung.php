@@ -86,6 +86,13 @@ final class Bearbeitung
 	 */
 	public static function pruefen(Auftrag $auftrag): array
 	{
+		// Ohne Änderung der Metadaten gibt es an Feldern, Suchtext und
+		// Sprache nichts zu prüfen — wohl aber, ob überhaupt etwas zu tun ist
+		if (Auftrag::MODUS_KEINE === $auftrag->modus)
+		{
+			return $auftrag->wichtigerTeil ? array() : array('nichtsZuTun');
+		}
+
 		$fehler = array();
 
 		if (!\in_array($auftrag->modus, array(Auftrag::MODUS_ERSETZEN, Auftrag::MODUS_SETZEN), true))
@@ -141,6 +148,11 @@ final class Bearbeitung
 	 */
 	public static function anwenden(array $meta, Auftrag $auftrag): array
 	{
+		if (Auftrag::MODUS_KEINE === $auftrag->modus)
+		{
+			return $meta;
+		}
+
 		if (Auftrag::MODUS_SETZEN === $auftrag->modus)
 		{
 			return self::setzen($meta, $auftrag);

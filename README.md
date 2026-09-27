@@ -45,9 +45,10 @@ Nicht-Administratoren brauchen in ihrer Benutzergruppe das Modul unter
 | Ordner | Ein Ordner aus dem Dateibaum der Dateiverwaltung; ohne Auswahl gelten alle Dateien |
 | Unterordner einschließen | Auch Dateien in allen Unterordnern bearbeiten |
 | Dateiendungen | Nur Dateien mit diesen Endungen, z. B. `jpg, png`; leer für alle |
+| Betriebsart | „Suchen und ersetzen“, „Werte setzen“ oder „Metadaten nicht ändern“; blendet die passenden Felder ein |
 | Sprache | Eine aktivierte Backend-Sprache oder „alle vorhandenen Sprachen“ |
 | Felder | Nur die angehakten Felder werden bearbeitet |
-| Betriebsart | „Suchen und ersetzen“ oder „Werte setzen“; blendet die passenden Felder ein |
+| Wichtigen Bildteil automatisch markieren | Schätzt bei Bildern ohne wichtigen Teil diesen aus dem Bildinhalt |
 
 Der Ordner wird über Contaos eigenen Dateibaum gewählt, der jeden Zweig erst
 beim Aufklappen lädt — auch bei sehr großen Dateiverwaltungen ohne Wartezeit.
@@ -71,13 +72,47 @@ Werte stehen; abgeschaltet werden die gewählten Felder in allen ausgewählten
 Dateien überschrieben — auch mit einem leeren Wert, was einem Löschen
 gleichkommt.
 
+### Wichtiger Bildteil
+
+Contao merkt sich zu jedem Bild einen „wichtigen Teil“, der beim Zuschneiden
+im Bild bleibt. Von Hand wird er in der Dateiverwaltung als Rechteck
+aufgezogen — bei hunderten Fotos eine Fleißarbeit. Mit **„Wichtigen Bildteil
+automatisch markieren“** schätzt das Modul ihn für alle ausgewählten Bilder,
+die **noch keinen** haben. Bereits markierte Bilder werden nie angefasst.
+
+Das Verfahren bewertet jedes Pixel eines Vorschaubildes nach Detailreichtum,
+Nähe zu Hauttönen und Farbsättigung und sucht das Fenster, in dem diese
+Wertung am dichtesten liegt. Auf Personenfotos trifft es damit in der Regel
+das Gesicht; ist der Inhalt gleichmäßig verteilt (Turniersaal, Gruppenfoto),
+wird der Teil entsprechend größer. Der Teil umfasst je Achse 30 bis 80
+Prozent des Bildes.
+
+Es ist eine Schätzung, **keine Gesichtserkennung**. Die Vorschau zeigt
+deshalb für die ersten zwölf Bilder das Rechteck über dem Bild. Was nicht
+passt, lässt sich danach in der Dateiverwaltung von Hand nachbessern oder
+über die Versionen der Datei zurücksetzen.
+
+Gut zu wissen:
+
+* Ausgewertet werden JPEG, PNG, GIF, WebP, AVIF und BMP, keine SVG. Nötig ist
+  die PHP-Erweiterung GD.
+* Das Vorschaubild kommt aus Contaos Bildfabrik und landet im Bildcache. Beim
+  ersten Mal kostet das je Bild Rechenzeit, bei großen Fotos mit GD mehrere
+  Sekunden.
+* Die Bildanalyse läuft je Ausführung höchstens 20 Sekunden. Bleiben Bilder
+  übrig, meldet das Modul ihre Zahl; ein erneutes Ausführen macht dort weiter.
+* Ohne Imagick überspringt das Modul Bilder, die nicht in den PHP-Speicher
+  passen würden, statt die Seite abbrechen zu lassen.
+* Soll ein Auftrag nur Bildteile markieren, ist „Metadaten nicht ändern“ die
+  passende Betriebsart.
+
 ### Vorschau und Ausführung
 
 Die Operation **„Vorschau und Ausführen“** (Symbol mit den zwei Pfeilen) in
-der Auftragsliste zeigt oben die Einstellungen des Auftrags und darunter je
-Datei, Sprache und Feld den bisherigen und den neuen Wert, ohne etwas zu
-speichern. Erst darunter steht der Knopf **„… Dateien jetzt ändern“**, der
-genau die angezeigte Änderung ausführt. Danach leitet das Modul auf die
+der Auftragsliste zeigt oben die Einstellungen des Auftrags, darunter die
+Bilder mit geschätztem wichtigen Teil und je Datei, Sprache und Feld den
+bisherigen und den neuen Wert, ohne etwas zu speichern. Erst darunter steht
+der Knopf **„Auftrag jetzt ausführen“**. Danach leitet das Modul auf die
 Vorschau zurück und listet die geänderten Dateien auf; ein Neuladen der Seite
 wiederholt die Änderung nicht.
 
@@ -106,12 +141,27 @@ C:\xampp\php\php.exe tools/pruefstand.php F:\Claude\contao-test-413
 C:\xampp\php\php.exe tools/pruefstand.php F:\Claude\contao-test
 ```
 
+## Praxisprobe
+
+`tools/bildprobe.php` braucht im Gegensatz zum Prüfstand eine laufende
+Datenbank. Sie legt die übergebenen Bilder in einem eigenen Ordner unter
+`files/` ab, geht den Weg des Moduls von der Dateiabfrage über die Bildfabrik
+bis zur gespeicherten Version und räumt danach Ordner, Zeilen und Versionen
+wieder weg. Das Bundle muss in der Installation nicht installiert sein.
+
+```
+C:\xampp\php\php.exe tools/bildprobe.php F:\Claude\contao-test-413 C:\Pfad\foto.jpg
+C:\xampp\php\php.exe tools/bildprobe.php F:\Claude\contao-test C:\Pfad\foto.jpg
+```
+
 ## Entwickler
 
 Die Kernlogik (Lesen, Prüfen, Ersetzen, Setzen, Vergleichen) steckt in
 `src/Classes/Bearbeitung.php`, die Abbildung eines Datensatzes auf einen
-Auftrag in `src/Classes/Auftrag.php`; beides kommt ohne Contao und ohne
-Datenbank aus. Die DCA `tl_metadaten` liefert das Formular mit Dateibaum, das
+Auftrag in `src/Classes/Auftrag.php`, die Schätzung des wichtigen Bildteils
+in `src/Classes/Bildanalyse.php`; alle drei kommen ohne Contao und ohne
+Datenbank aus. `src/Classes/Bildteil.php` verbindet die Bildanalyse mit
+Contaos Bildfabrik. Die DCA `tl_metadaten` liefert das Formular mit Dateibaum, das
 Modul `src/Modules/Metadaten.php` kümmert sich um Vorschau, Dateiauswahl,
 Versionen und Speichern.
 

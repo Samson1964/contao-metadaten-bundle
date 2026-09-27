@@ -33,11 +33,27 @@ final class Auftrag
 	public const MODUS_SETZEN = 'setzen';
 
 	/**
+	 * Betriebsart ohne Änderung der Metadaten — sinnvoll nur zusammen mit
+	 * wichtigerTeil, wenn allein der wichtige Bildteil markiert werden soll
+	 */
+	public const MODUS_KEINE = 'keine';
+
+	/**
 	 * Betriebsart, eine der MODUS_-Konstanten
 	 *
 	 * @var string
 	 */
 	public $modus = self::MODUS_ERSETZEN;
+
+	/**
+	 * Bei Bildern ohne wichtigen Teil diesen automatisch schätzen und markieren.
+	 *
+	 * Wirkt unabhängig von der Betriebsart und nie auf Bilder, die bereits
+	 * einen wichtigen Teil haben.
+	 *
+	 * @var bool
+	 */
+	public $wichtigerTeil = false;
 
 	/**
 	 * Zu bearbeitende Felder, Teilmenge von Bearbeitung::FELDER
@@ -121,6 +137,7 @@ final class Auftrag
 		$auftrag->regex = !empty($row['regex']);
 		$auftrag->gross = !empty($row['gross']);
 		$auftrag->nurLeere = !empty($row['nurLeere']);
+		$auftrag->wichtigerTeil = !empty($row['wichtigerTeil']);
 
 		$felder = $row['felder'] ?? array();
 
