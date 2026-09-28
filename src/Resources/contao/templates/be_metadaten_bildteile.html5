@@ -66,7 +66,7 @@ $pz = static function ($bruchteil): string { return number_format((float) $bruch
 				<?php endif; ?>
 			</div>
 
-			<div class="widget clr metadaten-karten">
+			<div class="widget clr metadaten-karten" data-metadaten-kaskade="bundles/contaometadaten/js/vendor/facefinder.bin">
 				<?php foreach ($this->bilder as $bild): ?>
 					<figure class="metadaten-karte" data-metadaten-karte>
 						<div
@@ -99,9 +99,16 @@ $pz = static function ($bruchteil): string { return number_format((float) $bruch
 								<label for="ctrl_uebernehmen_<?= (int) $bild['id'] ?>"><?= $sc($t['bildteileUebernehmen'] ?? 'übernehmen') ?></label>
 								<button type="button" class="metadaten-zuruecksetzen" data-metadaten-zurueck title="<?= $sc($t['bildteileVorschlagTitel'] ?? '') ?>"><?= $sc($t['bildteileVorschlag'] ?? 'Vorschlag') ?></button>
 							</span>
-							<?php if (!$bild['geschaetzt']): ?>
-								<span class="metadaten-hinweis"><?= $sc($t['bildteileOhneSchaetzung'] ?? 'Kein Vorschlag, Bildmitte vorbelegt') ?></span>
-							<?php endif; ?>
+							<?php // Wird von gesichter.js gefüllt; ohne JavaScript bleibt die Zeile leer ?>
+							<span
+								class="metadaten-fund"
+								data-metadaten-fund
+								aria-live="polite"
+								data-text-suche="<?= $sc($t['gesichterSuche'] ?? 'Suche Gesichter …') ?>"
+								data-text-eins="<?= $sc($t['gesichterEins'] ?? 'Ein Gesicht erkannt') ?>"
+								data-text-viele="<?= $sc($t['gesichterViele'] ?? '%d Gesichter erkannt') ?>"
+								data-text-keins="<?= $sc($bild['geschaetzt'] ? ($t['gesichterKeins'] ?? 'Kein Gesicht erkannt') : ($t['bildteileOhneSchaetzung'] ?? 'Kein Vorschlag')) ?>"
+							></span>
 						</figcaption>
 					</figure>
 				<?php endforeach; ?>
@@ -126,4 +133,6 @@ $pz = static function ($bruchteil): string { return number_format((float) $bruch
 // Seitenwechsel nur den Seiteninhalt sicher neu auswertet; das Skript selbst
 // sorgt dafür, dass es nur einmal wirkt.
 ?>
+<script src="bundles/contaometadaten/js/vendor/pico.js"></script>
 <script src="bundles/contaometadaten/js/bildteile.js"></script>
+<script src="bundles/contaometadaten/js/gesichter.js"></script>

@@ -98,7 +98,7 @@ class Metadaten
 	/**
 	 * Kantenlänge der Vorschaubilder im Bildteil-Editor in Pixeln
 	 */
-	private const EDITOR_KANTE = 480;
+	private const EDITOR_KANTE = 800;
 
 	/**
 	 * Baut die Vorschauseite eines Auftrags und führt ihn auf Wunsch aus.
@@ -297,7 +297,10 @@ class Metadaten
 
 		// Der Editor ist reines JavaScript ohne Abhängigkeit von MooTools
 		// (Contao 4.13) oder Stimulus (Contao 5)
+		// pico.js (Gesichtserkennung im Browser) muss vor gesichter.js stehen
+		$GLOBALS['TL_JAVASCRIPT'][] = 'bundles/contaometadaten/js/vendor/pico.js';
 		$GLOBALS['TL_JAVASCRIPT'][] = 'bundles/contaometadaten/js/bildteile.js';
+		$GLOBALS['TL_JAVASCRIPT'][] = 'bundles/contaometadaten/js/gesichter.js';
 
 		$template = new BackendTemplate('be_metadaten_bildteile');
 		$template->texte = $texte;

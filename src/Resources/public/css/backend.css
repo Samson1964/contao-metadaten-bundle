@@ -239,3 +239,12 @@
 .metadaten-hinweis {
 	color: var(--text-secondary, #666);
 }
+
+.metadaten-fund {
+	min-height: 1.4em;
+	color: var(--text-secondary, #666);
+}
+
+.metadaten-fund-treffer {
+	color: var(--green, #2a7);
+}

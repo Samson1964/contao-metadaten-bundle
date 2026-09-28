@@ -100,7 +100,30 @@ Vorschläge der ganzen Seite. Bilder ohne Häkchen bleiben unmarkiert und
 erscheinen beim nächsten Aufruf wieder. Gespeicherte Bilder fallen aus der
 Liste, die übrigen rücken nach.
 
-Der Editor läuft mit Maus, Finger und Tastatur und braucht keine Bibliothek.
+Der Editor läuft mit Maus, Finger und Tastatur.
+
+#### Gesichtserkennung
+
+Sobald die Seite geladen ist, sucht der Browser in jedem Bild nach
+Gesichtern. Findet er welche, rückt der Vorschlag auf die Köpfe, mit etwas
+Zugabe für Haare und Kinn; bei mehreren Gesichtern umschließt das Rechteck
+alle. Unter jedem Bild steht das Ergebnis. Ohne Fund bleibt die Schätzung
+aus dem Bildinhalt stehen.
+
+Die Erkennung leistet [pico.js](https://github.com/nenadmarkus/picojs) von
+Nenad Markuš (MIT-Lizenz). Bibliothek und Erkennungsdaten liegen dem Bundle
+bei und laufen vollständig im Browser: Es wird kein Bild und kein Ergebnis
+an einen fremden Server übertragen.
+
+Was die Erkennung kann und was nicht:
+
+* Sie findet Gesichter, die ungefähr nach vorn schauen und aufrecht stehen.
+  Profile, stark geneigte Köpfe und sehr kleine Gesichter entgehen ihr.
+* Brillen, Schatten und dunkle Bilder senken die Sicherheit. Damit ein
+  Fehlfund das Rechteck nicht vom Kopf wegzieht, zählt neben dem besten Fund
+  jeder weitere nur, wenn er für sich genommen sicher ist. Auf Gruppenfotos
+  können deshalb einzelne Köpfe fehlen.
+* Der Vorschlag bleibt ein Vorschlag. Gespeichert wird erst mit Häkchen.
 
 ### Wichtiger Bildteil automatisch
 
@@ -203,7 +226,20 @@ Der Bildteil-Editor besteht aus `be_metadaten_bildteile.html5` und
 `document` und findet seine Elemente über `data-`Attribute; deshalb läuft es
 unter Contao 4.13 (MooTools) wie unter Contao 5 (Stimulus und Turbo), ohne
 eine der beiden Bibliotheken zu benutzen. Der Prüfstand kontrolliert, dass
-Skript und Template dieselben Attribute kennen. Die DCA `tl_metadaten` liefert das Formular mit Dateibaum, das
+Skript und Template dieselben Attribute kennen.
+
+`src/Resources/public/js/gesichter.js` verbindet den Editor mit pico.js. Die
+Stellschrauben stehen dort als Konstanten: `KANTE` (Auflösung der Analyse),
+`GUETE`, `GUETE_WEITERE` und `ANTEIL_WEITERE` (Schwellen) sowie `ZUGABE`
+(Rand um das Gesicht). Die Fremddateien unter `js/vendor/` bleiben
+unverändert; Herkunft, Prüfsummen und Lizenz stehen in der `LIESMICH.md`
+daneben.
+
+## Lizenz der Fremddateien
+
+pico.js und die Erkennungsdaten `facefinder` stehen unter der MIT-Lizenz,
+Urheber ist Nenad Markuš. Der Lizenztext liegt unter
+`src/Resources/public/js/vendor/LIESMICH.md`. Die DCA `tl_metadaten` liefert das Formular mit Dateibaum, das
 Modul `src/Modules/Metadaten.php` kümmert sich um Vorschau, Dateiauswahl,
 Versionen und Speichern.
 

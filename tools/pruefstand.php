@@ -323,6 +323,33 @@ foreach (array('data-metadaten-karte', 'data-metadaten-editor', 'data-metadaten-
 	pruefe($attribut.' in Skript und Template', false !== strpos($skript, $attribut) && false !== strpos($editor, $attribut), $fehler);
 }
 
+// Gesichtserkennung: eigenes Skript und die unverändert beigelegten Fremddateien
+$gesichter = (string) file_get_contents($bundle.'/src/Resources/public/js/gesichter.js');
+pruefe('gesichter.js vorhanden', '' !== $gesichter, $fehler);
+
+foreach (array('data-metadaten-kaskade', 'data-metadaten-fund', 'data-text-suche', 'data-text-eins', 'data-text-viele', 'data-text-keins') as $attribut)
+{
+	pruefe($attribut.' in gesichter.js und Template', false !== strpos($gesichter, $attribut) && false !== strpos($editor, $attribut), $fehler);
+}
+
+$fremd = array(
+	'pico.js'        => '785b981cc79e5fa3f7557dc3fa7773629d7529994d7627de41b77d8687649309',
+	'facefinder.bin' => 'd8014993e7298c7b1865d1f8b855d6dbf4ec5c808bf879e2091ab6837abf90cd',
+);
+
+foreach ($fremd as $datei => $summe)
+{
+	$pfad = $bundle.'/src/Resources/public/js/vendor/'.$datei;
+	pruefe('vendor/'.$datei.' unverändert (SHA-256)', is_file($pfad) && $summe === hash_file('sha256', $pfad), $fehler);
+	pruefe('vendor/'.$datei.' im Template eingebunden', false !== strpos($editor, 'js/vendor/'.$datei), $fehler);
+}
+
+pruefe('Herkunft und Lizenz der Fremddateien dokumentiert', is_file($bundle.'/src/Resources/public/js/vendor/LIESMICH.md'), $fehler);
+
+// Die Reihenfolge zählt: pico.js vor gesichter.js, bildteile.js vor gesichter.js
+$reihenfolge = array(strpos($editor, 'js/vendor/pico.js'), strpos($editor, 'js/bildteile.js'), strpos($editor, 'js/gesichter.js'));
+pruefe('Skripte im Template in der richtigen Reihenfolge', false !== $reihenfolge[0] && $reihenfolge[0] < $reihenfolge[2] && $reihenfolge[1] < $reihenfolge[2], $fehler);
+
 pruefe('Mindestgröße in PHP und Skript gleich', false !== strpos($skript, (string) Schachbulle\ContaoMetadatenBundle\Classes\Bildteil::MINDESTGROESSE), $fehler);
 
 // 8. Dienste, die das Bundle zur Laufzeit holt

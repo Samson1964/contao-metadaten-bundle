@@ -36,7 +36,23 @@
 		return;
 	}
 
-	window.MetadatenBildteile = true;
+	// Schnittstelle für gesichter.js: einen neuen Vorschlag setzen, ohne die
+	// Karte als von Hand geändert zu kennzeichnen. Die Funktionen selbst
+	// stehen weiter unten; Funktionsdeklarationen gelten im ganzen Block.
+	window.MetadatenBildteile = {
+		setzeVorschlag: function (karte, r) {
+			var editor = karte.querySelector('[data-metadaten-editor]');
+
+			schreibe(karte, r, false);
+
+			// Nach dem Schreiben stehen in den Feldern die begrenzten Werte
+			var g = lies(karte);
+			editor.setAttribute('data-vorschlag', [g.x, g.y, g.w, g.h].map(function (w) { return w.toFixed(4); }).join(','));
+		},
+		istGeaendert: function (karte) {
+			return karte.classList.contains('metadaten-geaendert');
+		}
+	};
 
 	/** Laufender Zug mit der Maus oder dem Finger, sonst null */
 	var zug = null;

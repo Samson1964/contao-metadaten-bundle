@@ -1,5 +1,17 @@
 # Metadaten Changelog
 
+## Version 1.4.0 (2026-09-28)
+
+Keine Datenbankaktualisierung nötig.
+
+* Add: Gesichtserkennung im Bildteil-Editor — der Browser sucht in jedem Vorschaubild nach Gesichtern und setzt den Vorschlag auf die Köpfe, mit Zugabe für Haare und Kinn; bei mehreren Gesichtern umschließt das Rechteck alle
+* Add: Jede Karte meldet das Ergebnis („Ein Gesicht erkannt“, „3 Gesichter erkannt“, „Kein Gesicht erkannt, Vorschlag ist eine Schätzung“)
+* Add: pico.js und die Erkennungsdaten `facefinder` von Nenad Markuš (MIT-Lizenz) liegen unverändert unter `src/Resources/public/js/vendor/` bei, samt Herkunft, Prüfsummen und Lizenztext; der Prüfstand vergleicht die Prüfsummen
+* Change: Vorschaubilder im Editor sind 800 statt 480 Pixel groß, damit auch kleinere Gesichter erkannt werden
+* Change: Ohne erkanntes Gesicht bleibt die bisherige Schätzung aus dem Bildinhalt der Vorschlag; ein von Hand geändertes Rechteck wird von der Erkennung nicht mehr angefasst
+
+Die Erkennung läuft vollständig im Browser. Es wird kein Bild und kein Ergebnis an einen fremden Server übertragen.
+
 ## Version 1.3.0 (2026-09-28)
 
 Keine Datenbankaktualisierung nötig.

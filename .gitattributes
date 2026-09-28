@@ -1,3 +1,8 @@
 # Nicht mit ins Composer-Archiv aufnehmen
 package-metadata.yml export-ignore
 .gitattributes export-ignore
+
+# Fremddateien unverändert halten: keine Umwandlung der Zeilenenden,
+# die Erkennungsdaten sind binär
+src/Resources/public/js/vendor/pico.js -text
+*.bin binary
