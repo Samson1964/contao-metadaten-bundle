@@ -1,0 +1,129 @@
+<?php
+/**
+ * Backend-Template des Bildteil-Editors (key=bildteile).
+ *
+ * Wird von Modules\Metadaten::bildteile() befüllt. Je Bild gibt es eine
+ * Karte mit Vorschaubild, verschiebbarem Rechteck und vier versteckten
+ * Feldern teil[<id>][x|y|width|height], die den wichtigen Teil als
+ * Bruchteile der Bildgröße tragen. Das Rechteck bewegt bildteile.js; ohne
+ * JavaScript lässt sich der Vorschlag immerhin unverändert übernehmen.
+ *
+ * Die data-Attribute sind die Schnittstelle zum Skript, die Klassen die zum
+ * Stylesheet — beides getrennt, damit eine Umgestaltung das Verhalten nicht
+ * bricht.
+ */
+
+use Contao\StringUtil;
+
+$t = $this->texte;
+$sc = static function ($wert): string { return StringUtil::specialchars((string) $wert); };
+
+// Bruchteil mit Dezimalpunkt, unabhängig von der Locale
+$bt = static function ($bruchteil): string { return number_format((float) $bruchteil, 4, '.', ''); };
+$pz = static function ($bruchteil): string { return number_format((float) $bruchteil * 100, 2, '.', ''); };
+?>
+<div id="tl_buttons">
+	<a href="<?= $this->zurueck ?>" class="header_back" title="<?= $sc($GLOBALS['TL_LANG']['MSC']['backBTTitle'] ?? '') ?>" accesskey="b"><?= $GLOBALS['TL_LANG']['MSC']['backBT'] ?? 'Zurück' ?></a>
+</div>
+
+<h2 class="sub_headline"><?= $sc(sprintf($t['bildteileHeadline'] ?? 'Wichtige Bildteile markieren: %s', $this->titel)) ?></h2>
+
+<?= $this->meldungen ?>
+
+<form id="<?= $this->formular ?>" class="tl_form tl_edit_form" method="post" action="<?= $this->action ?>">
+<div class="tl_formbody_edit">
+	<input type="hidden" name="FORM_SUBMIT" value="<?= $this->formular ?>">
+	<input type="hidden" name="REQUEST_TOKEN" value="<?= $this->requestToken ?>">
+
+	<fieldset class="tl_tbox">
+		<legend><?= $sc($t['legendBildteile'] ?? 'Bilder ohne wichtigen Teil') ?></legend>
+
+		<div class="widget clr">
+			<?php if (0 === $this->anzahl): ?>
+				<p class="tl_info"><?= $sc(sprintf($t['bildteileFertig'] ?? 'Alle Bilder in „%s“ haben einen wichtigen Teil.', $this->ordner)) ?></p>
+			<?php else: ?>
+				<p class="tl_info"><?= $sc(sprintf($t['bildteileOffen'] ?? '%d Bilder in „%s“ ohne wichtigen Teil.', $this->anzahl, $this->ordner)) ?></p>
+				<p class="tl_help"><?= $sc($t['bildteileAnleitung'] ?? '') ?></p>
+			<?php endif; ?>
+		</div>
+
+		<?php if ($this->unlesbar): ?>
+			<div class="widget clr">
+				<p class="tl_error"><?= $sc(sprintf($t['bildteileUnlesbar'] ?? '%d Bilder nicht darstellbar:', \count($this->unlesbar))) ?> <?= $sc(implode(', ', array_map('basename', $this->unlesbar))) ?></p>
+			</div>
+		<?php endif; ?>
+
+		<?php if ($this->bilder): ?>
+			<div class="widget clr metadaten-werkzeuge">
+				<button type="button" class="tl_submit" data-metadaten-alle="1"><?= $sc($t['bildteileAlle'] ?? 'Alle anhaken') ?></button>
+				<button type="button" class="tl_submit" data-metadaten-alle="0"><?= $sc($t['bildteileKeine'] ?? 'Keines anhaken') ?></button>
+				<span class="metadaten-seite"><?= $sc(sprintf($t['bildteileSeite'] ?? 'Seite %d von %d', $this->seite, $this->seiten)) ?></span>
+				<?php if ($this->urlZurueckSeite): ?>
+					<a href="<?= $this->urlZurueckSeite ?>" class="tl_submit"><?= $sc($t['bildteileZurueck'] ?? 'vorige Seite') ?></a>
+				<?php endif; ?>
+				<?php if ($this->urlNaechsteSeite): ?>
+					<a href="<?= $this->urlNaechsteSeite ?>" class="tl_submit"><?= $sc($t['bildteileWeiter'] ?? 'nächste Seite') ?></a>
+				<?php endif; ?>
+			</div>
+
+			<div class="widget clr metadaten-karten">
+				<?php foreach ($this->bilder as $bild): ?>
+					<figure class="metadaten-karte" data-metadaten-karte>
+						<div
+							class="metadaten-editor"
+							data-metadaten-editor
+							data-min="<?= $bt($this->mindestgroesse) ?>"
+							data-vorschlag="<?= $bt($bild['teil']['x']) ?>,<?= $bt($bild['teil']['y']) ?>,<?= $bt($bild['teil']['width']) ?>,<?= $bt($bild['teil']['height']) ?>"
+							tabindex="0"
+							role="group"
+							aria-label="<?= $sc(sprintf($t['bildteileAria'] ?? 'Wichtiger Teil von %s', basename($bild['path']))) ?>"
+						>
+							<img src="<?= $sc($bild['url']) ?>" width="<?= (int) $bild['breite'] ?>" height="<?= (int) $bild['hoehe'] ?>" alt="" draggable="false">
+							<span class="metadaten-teil" data-metadaten-teil style="left:<?= $pz($bild['teil']['x']) ?>%;top:<?= $pz($bild['teil']['y']) ?>%;width:<?= $pz($bild['teil']['width']) ?>%;height:<?= $pz($bild['teil']['height']) ?>%">
+								<span class="metadaten-griff metadaten-griff-nw" data-ecke="nw"></span>
+								<span class="metadaten-griff metadaten-griff-ne" data-ecke="ne"></span>
+								<span class="metadaten-griff metadaten-griff-sw" data-ecke="sw"></span>
+								<span class="metadaten-griff metadaten-griff-se" data-ecke="se"></span>
+							</span>
+						</div>
+
+						<input type="hidden" name="teil[<?= (int) $bild['id'] ?>][x]" value="<?= $bt($bild['teil']['x']) ?>" data-feld="x">
+						<input type="hidden" name="teil[<?= (int) $bild['id'] ?>][y]" value="<?= $bt($bild['teil']['y']) ?>" data-feld="y">
+						<input type="hidden" name="teil[<?= (int) $bild['id'] ?>][width]" value="<?= $bt($bild['teil']['width']) ?>" data-feld="width">
+						<input type="hidden" name="teil[<?= (int) $bild['id'] ?>][height]" value="<?= $bt($bild['teil']['height']) ?>" data-feld="height">
+
+						<figcaption>
+							<span class="metadaten-name" title="<?= $sc($bild['path']) ?>"><?= $sc(basename($bild['path'])) ?></span>
+							<span class="metadaten-zeile">
+								<input type="checkbox" name="uebernehmen[<?= (int) $bild['id'] ?>]" id="ctrl_uebernehmen_<?= (int) $bild['id'] ?>" class="tl_checkbox" value="1" data-metadaten-haken>
+								<label for="ctrl_uebernehmen_<?= (int) $bild['id'] ?>"><?= $sc($t['bildteileUebernehmen'] ?? 'übernehmen') ?></label>
+								<button type="button" class="metadaten-zuruecksetzen" data-metadaten-zurueck title="<?= $sc($t['bildteileVorschlagTitel'] ?? '') ?>"><?= $sc($t['bildteileVorschlag'] ?? 'Vorschlag') ?></button>
+							</span>
+							<?php if (!$bild['geschaetzt']): ?>
+								<span class="metadaten-hinweis"><?= $sc($t['bildteileOhneSchaetzung'] ?? 'Kein Vorschlag, Bildmitte vorbelegt') ?></span>
+							<?php endif; ?>
+						</figcaption>
+					</figure>
+				<?php endforeach; ?>
+			</div>
+		<?php endif; ?>
+	</fieldset>
+</div>
+
+<?php if ($this->bilder): ?>
+	<div class="tl_formbody_submit">
+		<div class="tl_submit_container">
+			<button type="submit" name="speichern" id="speichern" class="tl_submit" value="1" accesskey="s"><?= $sc($t['bildteileSpeichern'] ?? 'Angehakte Bildteile speichern') ?></button>
+			<a href="<?= $this->vorschauUrl ?>" class="tl_submit"><?= $sc($t['bildteileZurVorschau'] ?? 'Zur Vorschau des Auftrags') ?></a>
+		</div>
+	</div>
+<?php endif; ?>
+</form>
+
+<?php
+// Das Skript ist zusätzlich über $GLOBALS['TL_JAVASCRIPT'] im Seitenkopf
+// angemeldet. Hier steht es noch einmal, weil Contao 5 mit Turbo beim
+// Seitenwechsel nur den Seiteninhalt sicher neu auswertet; das Skript selbst
+// sorgt dafür, dass es nur einmal wirkt.
+?>
+<script src="bundles/contaometadaten/js/bildteile.js"></script>

@@ -73,6 +73,7 @@ $pz = static function ($bruchteil): string { return number_format((float) $bruch
 				<?php else: ?>
 					<p class="tl_info"><?= $sc(sprintf($t['bildteilAnzahl'] ?? '%d Bilder ohne wichtigen Teil.', $this->bildteil['anzahl'])) ?></p>
 					<p class="tl_help"><?= $sc(sprintf($t['bildteilHinweis'] ?? 'Beispiele: %d', \count($this->bildteil['beispiele']))) ?></p>
+					<p><a href="<?= $this->bildteileUrl ?>" class="tl_submit metadaten-link"><?= $sc($t['bildteileLink'] ?? 'Diese Bilder von Hand markieren') ?></a></p>
 				<?php endif; ?>
 			</div>
 

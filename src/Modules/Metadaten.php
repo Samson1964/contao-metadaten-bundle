@@ -83,6 +83,24 @@ class Metadaten
 	private const ZEITBUDGET = 20.0;
 
 	/**
+	 * Wert von FORM_SUBMIT, an dem das Formular des Bildteil-Editors erkannt wird
+	 */
+	private const FORMULAR_BILDTEILE = 'tl_metadaten_bildteile';
+
+	/**
+	 * Zahl der Bilder je Seite im Bildteil-Editor.
+	 *
+	 * Jedes Bild braucht beim ersten Mal ein Vorschaubild aus der Bildfabrik;
+	 * mehr Bilder je Seite machten den Seitenaufbau entsprechend träge.
+	 */
+	private const BILDER_JE_SEITE = 12;
+
+	/**
+	 * Kantenlänge der Vorschaubilder im Bildteil-Editor in Pixeln
+	 */
+	private const EDITOR_KANTE = 480;
+
+	/**
 	 * Baut die Vorschauseite eines Auftrags und führt ihn auf Wunsch aus.
 	 *
 	 * @param DataContainer|null $dc Der DataContainer von tl_metadaten (von Contao übergeben)
@@ -102,17 +120,8 @@ class Metadaten
 		$sitzung = $container->get('request_stack')->getSession()->getBag('contao_backend');
 		$texte = $GLOBALS['TL_LANG']['METADATEN'] ?? array();
 
-		$id = (int) Input::get('id');
-		$model = $id > 0 ? MetadatenModel::findByPk($id) : null;
-
-		if (null === $model)
-		{
-			Message::addError($texte['fehler']['auftragUnbekannt'] ?? 'auftragUnbekannt');
-
-			throw new RedirectResponseException($this->listenUrl());
-		}
-
-		$row = $model->row();
+		$row = $this->auftragszeile();
+		$id = (int) $row['id'];
 		$auftrag = Auftrag::ausDatensatz($row);
 		$freigaben = $this->freigaben($user);
 		$fehler = array();
@@ -196,9 +205,187 @@ class Metadaten
 		$template->action = StringUtil::ampersand($request->getRequestUri());
 		$template->zurueck = $this->listenUrl();
 		$template->bearbeiten = $this->bearbeitenUrl($id);
+		$template->bildteileUrl = $this->backendUrl(array('do' => 'metadaten', 'key' => 'bildteile', 'id' => $id));
 		$template->formular = self::FORMULAR;
 
 		return $template->parse();
+	}
+
+	/**
+	 * Baut den Bildteil-Editor: Bilder ohne wichtigen Teil ansehen und von Hand markieren.
+	 *
+	 * Contao ruft die Methode über den Eintrag 'bildteile' in
+	 * $GLOBALS['BE_MOD'] auf (&key=bildteile&id=…, Operation „Wichtige
+	 * Bildteile markieren“ in der Auftragsliste). Vom Auftrag zählt hier nur
+	 * die Dateiauswahl — Ordner, Unterordner, Dateiendungen. Betriebsart und
+	 * Metadaten spielen keine Rolle.
+	 *
+	 * Die Seite zeigt je Durchgang eine begrenzte Zahl von Bildern mit einem
+	 * Vorschlag aus der Bildanalyse. Der Vorschlag ist nur der Ausgangspunkt:
+	 * Das Rechteck lässt sich im Browser verschieben, in der Größe ändern oder
+	 * neu aufziehen (bildteile.js). Gespeichert werden nur Bilder, deren
+	 * Häkchen „übernehmen“ gesetzt ist; alle anderen bleiben unmarkiert und
+	 * erscheinen beim nächsten Aufruf wieder.
+	 *
+	 * @param DataContainer|null $dc Der DataContainer von tl_metadaten (von Contao übergeben)
+	 *
+	 * @return string Das HTML des Backend-Templates be_metadaten_bildteile
+	 *
+	 * @throws RedirectResponseException nach dem Speichern oder bei unbekanntem Auftrag
+	 */
+	public function bildteile($dc = null): string
+	{
+		System::loadLanguageFile('default');
+		System::loadLanguageFile('tl_metadaten');
+
+		$container = System::getContainer();
+		$request = $container->get('request_stack')->getCurrentRequest();
+		$texte = $GLOBALS['TL_LANG']['METADATEN'] ?? array();
+
+		$row = $this->auftragszeile();
+		$id = (int) $row['id'];
+		$freigaben = $this->freigaben(BackendUser::getInstance());
+		$fehler = array();
+		$ordnerPfad = $this->ordnerPfad($row, $freigaben, $fehler);
+		$kandidaten = $fehler ? array() : Bildteil::kandidaten($this->dateien($row, $ordnerPfad, $freigaben));
+
+		if (!$fehler && self::FORMULAR_BILDTEILE === Input::post('FORM_SUBMIT'))
+		{
+			$ergebnis = $this->speichereBildteile($kandidaten);
+
+			if ($ergebnis['gespeichert'] > 0)
+			{
+				Message::addConfirmation(sprintf($texte['markiert'] ?? '%d Bilder markiert.', $ergebnis['gespeichert']));
+			}
+			else
+			{
+				Message::addInfo($texte['bildteileNichts'] ?? 'Nichts gespeichert.');
+			}
+
+			if ($ergebnis['abgewiesen'] > 0)
+			{
+				Message::addError(sprintf($texte['fehler']['bildteilUngueltig'] ?? '%d ungültig.', $ergebnis['abgewiesen']));
+			}
+
+			throw new RedirectResponseException($request->getRequestUri());
+		}
+
+		foreach ($fehler as $meldung)
+		{
+			Message::addError($meldung);
+		}
+
+		// Blättern: Gespeicherte Bilder fallen aus der Liste, die übrigen
+		// rücken nach — die Seitenzahl wird deshalb bei jedem Aufruf begrenzt
+		$seiten = max(1, (int) ceil(\count($kandidaten) / self::BILDER_JE_SEITE));
+		$seite = max(1, min($seiten, (int) Input::get('seite')));
+		$bilder = array();
+		$unlesbar = array();
+
+		foreach (\array_slice($kandidaten, ($seite - 1) * self::BILDER_JE_SEITE, self::BILDER_JE_SEITE) as $kandidat)
+		{
+			$vorschlag = Bildteil::vorschlag($kandidat['path'], self::EDITOR_KANTE);
+
+			if (null === $vorschlag)
+			{
+				$unlesbar[] = $kandidat['path'];
+				continue;
+			}
+
+			$bilder[] = array('id' => $kandidat['id'], 'path' => $kandidat['path']) + $vorschlag;
+		}
+
+		// Der Editor ist reines JavaScript ohne Abhängigkeit von MooTools
+		// (Contao 4.13) oder Stimulus (Contao 5)
+		$GLOBALS['TL_JAVASCRIPT'][] = 'bundles/contaometadaten/js/bildteile.js';
+
+		$template = new BackendTemplate('be_metadaten_bildteile');
+		$template->texte = $texte;
+		$template->titel = (string) $row['titel'];
+		$template->ordner = '' !== $ordnerPfad ? $ordnerPfad : ($GLOBALS['TL_LANG']['tl_metadaten']['alleDateien'] ?? 'alle Dateien');
+		$template->anzahl = \count($kandidaten);
+		$template->bilder = $bilder;
+		$template->unlesbar = $unlesbar;
+		$template->seite = $seite;
+		$template->seiten = $seiten;
+		$template->urlZurueckSeite = $seite > 1 ? $this->backendUrl(array('do' => 'metadaten', 'key' => 'bildteile', 'id' => $id, 'seite' => $seite - 1)) : '';
+		$template->urlNaechsteSeite = $seite < $seiten ? $this->backendUrl(array('do' => 'metadaten', 'key' => 'bildteile', 'id' => $id, 'seite' => $seite + 1)) : '';
+		$template->mindestgroesse = Bildteil::MINDESTGROESSE;
+		$template->meldungen = Message::generate();
+		$template->requestToken = Helfer::requestToken();
+		$template->action = StringUtil::ampersand($request->getRequestUri());
+		$template->zurueck = $this->listenUrl();
+		$template->vorschauUrl = $this->backendUrl(array('do' => 'metadaten', 'key' => 'vorschau', 'id' => $id));
+		$template->formular = self::FORMULAR_BILDTEILE;
+
+		return $template->parse();
+	}
+
+	/**
+	 * Lädt den Auftrag, dessen ID in der Adresse steht.
+	 *
+	 * @return array<string, mixed> Der Datensatz aus tl_metadaten
+	 *
+	 * @throws RedirectResponseException zur Auftragsliste, wenn es den Auftrag nicht gibt
+	 */
+	private function auftragszeile(): array
+	{
+		$id = (int) Input::get('id');
+		$model = $id > 0 ? MetadatenModel::findByPk($id) : null;
+
+		if (null === $model)
+		{
+			Message::addError($GLOBALS['TL_LANG']['METADATEN']['fehler']['auftragUnbekannt'] ?? 'auftragUnbekannt');
+
+			throw new RedirectResponseException($this->listenUrl());
+		}
+
+		return $model->row();
+	}
+
+	/**
+	 * Speichert die im Bildteil-Editor von Hand gesetzten wichtigen Teile.
+	 *
+	 * Angenommen werden nur Bilder, die zur Dateiauswahl des Auftrags gehören
+	 * und noch keinen wichtigen Teil haben — eine manipulierte Formulareingabe
+	 * kann also weder fremde Dateien erreichen noch bestehende Markierungen
+	 * überschreiben. Jede Datei bekommt eine Version.
+	 *
+	 * @param array<int, array{id: int, path: string}> $kandidaten Bilder ohne wichtigen Teil aus der Dateiauswahl
+	 *
+	 * @return array{gespeichert: int, abgewiesen: int} Zahl der gespeicherten Bilder
+	 *         und der angehakten Bilder mit unbrauchbaren Werten
+	 */
+	private function speichereBildteile(array $kandidaten): array
+	{
+		$erlaubt = array_column($kandidaten, 'path', 'id');
+		$teile = (array) Input::post('teil');
+		$auftraege = array();
+		$abgewiesen = 0;
+
+		foreach (array_keys((array) Input::post('uebernehmen')) as $id)
+		{
+			$id = (int) $id;
+
+			if (!isset($erlaubt[$id]))
+			{
+				continue;
+			}
+
+			$teil = Bildteil::bereinigen($teile[$id] ?? null);
+
+			if (null === $teil)
+			{
+				++$abgewiesen;
+				continue;
+			}
+
+			$auftraege[$id] = array('path' => $erlaubt[$id], 'meta' => null, 'teil' => $teil);
+		}
+
+		$this->schreiben($auftraege);
+
+		return array('gespeichert' => \count($auftraege), 'abgewiesen' => $abgewiesen);
 	}
 
 	/**

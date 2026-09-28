@@ -100,6 +100,13 @@ $GLOBALS['TL_DCA']['tl_metadaten'] = array
 				'href'                  => 'key=vorschau',
 				'icon'                  => 'diff.svg',
 			),
+			// Bildteil-Editor: key=bildteile ruft Modules\Metadaten::bildteile()
+			'bildteile' => array
+			(
+				'label'                 => &$GLOBALS['TL_LANG']['tl_metadaten']['bildteile'],
+				'href'                  => 'key=bildteile',
+				'icon'                  => 'sizes.svg',
+			),
 			'show' => array
 			(
 				'label'                 => &$GLOBALS['TL_LANG']['tl_metadaten']['show'],

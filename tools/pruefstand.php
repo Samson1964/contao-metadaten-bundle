@@ -184,6 +184,7 @@ require $bundle.'/src/Resources/contao/config/config.php';
 pruefe('config.php geladen', true, $fehler);
 pruefe('Backend-Modul metadaten mit Tabelle tl_metadaten', array('tl_metadaten') === ($GLOBALS['BE_MOD']['system']['metadaten']['tables'] ?? null), $fehler);
 pruefe('key=vorschau angemeldet', isset($GLOBALS['BE_MOD']['system']['metadaten']['vorschau'][1]), $fehler);
+pruefe('key=bildteile angemeldet', isset($GLOBALS['BE_MOD']['system']['metadaten']['bildteile'][1]), $fehler);
 pruefe('Modul steht direkt hinter der Dateiverwaltung', array('files', 'metadaten', 'log') === array_keys($GLOBALS['BE_MOD']['system']), $fehler);
 pruefe('Model in TL_MODELS eingetragen', isset($GLOBALS['TL_MODELS']['tl_metadaten']) && is_subclass_of($GLOBALS['TL_MODELS']['tl_metadaten'], 'Contao\Model'), $fehler);
 pruefe('Stylesheet außerhalb des Backends nicht geladen', array() === $GLOBALS['TL_CSS'], $fehler);
@@ -201,6 +202,8 @@ pruefe('dataContainer ist DC_Table::class', 'Contao\DC_Table' === ($dca['config'
 pruefe('Ordner ist ein fileTree nur für Ordner', 'fileTree' === ($dca['fields']['ordner']['inputType'] ?? '') && false === ($dca['fields']['ordner']['eval']['files'] ?? null), $fehler);
 pruefe('keine children-Operation', !isset($dca['list']['operations']['children']), $fehler);
 pruefe('Operation vorschau zeigt auf key=vorschau', 'key=vorschau' === ($dca['list']['operations']['vorschau']['href'] ?? ''), $fehler);
+pruefe('Operation bildteile zeigt auf key=bildteile', 'key=bildteile' === ($dca['list']['operations']['bildteile']['href'] ?? ''), $fehler);
+pruefe('jede Operation ist beschriftet', array() === array_diff(array_keys($dca['list']['operations']), array_keys($GLOBALS['TL_LANG']['tl_metadaten'])), $fehler);
 
 $ohneSql = array();
 
@@ -280,6 +283,7 @@ echo "\nModulklasse\n";
 $modul = $GLOBALS['BE_MOD']['system']['metadaten']['vorschau'][0];
 pruefe('Klasse '.$modul.' ladbar', class_exists($modul), $fehler);
 pruefe('vorschau() vorhanden', method_exists($modul, 'vorschau'), $fehler);
+pruefe('bildteile() vorhanden', method_exists($modul, 'bildteile'), $fehler);
 pruefe('parameterlos erzeugbar (System::importStatic)', null === (new ReflectionClass($modul))->getConstructor(), $fehler);
 
 // 6. Kernlogik ohne Datenbank
@@ -300,9 +304,26 @@ pruefe('genau ein Unterschied gemeldet', 1 === \count(Schachbulle\ContaoMetadate
 
 // 7. Template übersetzen
 echo "\nTemplate\n";
-$template = $bundle.'/src/Resources/contao/templates/be_metadaten.html5';
-exec(escapeshellarg(PHP_BINARY).' -l '.escapeshellarg($template).' 2>&1', $ausgabe, $status);
-pruefe('be_metadaten.html5 syntaktisch in Ordnung', 0 === $status, $fehler);
+foreach (array('be_metadaten', 'be_metadaten_bildteile') as $name)
+{
+	$template = $bundle.'/src/Resources/contao/templates/'.$name.'.html5';
+	exec(escapeshellarg(PHP_BINARY).' -l '.escapeshellarg($template).' 2>&1', $ausgabe, $status);
+	pruefe($name.'.html5 syntaktisch in Ordnung', 0 === $status, $fehler);
+}
+
+// Skript und Template des Bildteil-Editors hängen über data-Attribute
+// zusammen; fehlt eines im Template, bleibt das Rechteck unbeweglich
+echo "\nBildteil-Editor\n";
+$skript = (string) file_get_contents($bundle.'/src/Resources/public/js/bildteile.js');
+$editor = (string) file_get_contents($bundle.'/src/Resources/contao/templates/be_metadaten_bildteile.html5');
+pruefe('bildteile.js vorhanden', '' !== $skript, $fehler);
+
+foreach (array('data-metadaten-karte', 'data-metadaten-editor', 'data-metadaten-teil', 'data-ecke', 'data-feld', 'data-metadaten-haken', 'data-metadaten-zurueck', 'data-metadaten-alle', 'data-vorschlag', 'data-min') as $attribut)
+{
+	pruefe($attribut.' in Skript und Template', false !== strpos($skript, $attribut) && false !== strpos($editor, $attribut), $fehler);
+}
+
+pruefe('Mindestgröße in PHP und Skript gleich', false !== strpos($skript, (string) Schachbulle\ContaoMetadatenBundle\Classes\Bildteil::MINDESTGROESSE), $fehler);
 
 // 8. Dienste, die das Bundle zur Laufzeit holt
 echo "\nDienste im kompilierten Behälter\n";

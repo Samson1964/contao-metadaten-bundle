@@ -153,6 +153,60 @@ class BildanalyseTest extends TestCase
 		$this->assertNull(Bildanalyse::ausDatei(__FILE__));
 	}
 
+	public function testBereinigenNimmtGueltigeRechteckeAn(): void
+	{
+		$this->assertSame(
+			array('x' => 0.41, 'y' => 0.12, 'width' => 0.2, 'height' => 0.25),
+			Bildteil::bereinigen(array('x' => '0.4100', 'y' => '0.1200', 'width' => '0.2000', 'height' => '0.2500'))
+		);
+
+		// Zahlen statt Text, Dezimalkomma und Rundung auf vier Stellen
+		$this->assertSame(
+			array('x' => 0.1235, 'y' => 0.0, 'width' => 0.5, 'height' => 1.0),
+			Bildteil::bereinigen(array('x' => 0.12346, 'y' => 0, 'width' => '0,5', 'height' => 1))
+		);
+	}
+
+	public function testBereinigenSchneidetRundungsueberstandAb(): void
+	{
+		// 0.7 + 0.3001 ragt durch Rundung im Browser über den rechten Rand
+		$teil = Bildteil::bereinigen(array('x' => '0.7', 'y' => '0.9', 'width' => '0.3001', 'height' => '0.2'));
+
+		$this->assertNotNull($teil);
+		$this->assertEqualsWithDelta(0.3, $teil['width'], 0.00001);
+		$this->assertEqualsWithDelta(0.1, $teil['height'], 0.00001);
+	}
+
+	/**
+	 * @dataProvider unbrauchbareEingaben
+	 *
+	 * @param mixed $eingabe
+	 */
+	public function testBereinigenWeistUnbrauchbaresAb($eingabe): void
+	{
+		$this->assertNull(Bildteil::bereinigen($eingabe));
+	}
+
+	/**
+	 * @return array<string, array{0: mixed}>
+	 */
+	public static function unbrauchbareEingaben(): array
+	{
+		return array(
+			'kein Feld'            => array('0.1,0.1,0.5,0.5'),
+			'null'                 => array(null),
+			'Schlüssel fehlt'      => array(array('x' => '0.1', 'y' => '0.1', 'width' => '0.5')),
+			'keine Zahl'           => array(array('x' => 'links', 'y' => '0.1', 'width' => '0.5', 'height' => '0.5')),
+			'SQL im Wert'          => array(array('x' => '0.1; DROP TABLE tl_files', 'y' => '0.1', 'width' => '0.5', 'height' => '0.5')),
+			'verschachteltes Feld' => array(array('x' => array('0.1'), 'y' => '0.1', 'width' => '0.5', 'height' => '0.5')),
+			'negativ'              => array(array('x' => '-0.1', 'y' => '0.1', 'width' => '0.5', 'height' => '0.5')),
+			'außerhalb des Bildes' => array(array('x' => '1.2', 'y' => '0.1', 'width' => '0.5', 'height' => '0.5')),
+			'Breite null'          => array(array('x' => '0.1', 'y' => '0.1', 'width' => '0', 'height' => '0.5')),
+			'zu klein'             => array(array('x' => '0.1', 'y' => '0.1', 'width' => '0.01', 'height' => '0.5')),
+			'am Rand ohne Platz'   => array(array('x' => '0.995', 'y' => '0.1', 'width' => '0.5', 'height' => '0.5')),
+		);
+	}
+
 	public function testKandidatenSindNurBilderOhneWichtigenTeil(): void
 	{
 		$dateien = array(

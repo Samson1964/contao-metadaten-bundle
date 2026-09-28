@@ -46,6 +46,14 @@ final class Bildteil
 	private const VORSCHAU = 240;
 
 	/**
+	 * Kleinste Ausdehnung eines von Hand gesetzten wichtigen Teils je Achse (Bruchteil).
+	 *
+	 * Bewusst klein: Auf einem Gruppenfoto nimmt ein Kopf nur wenige Prozent
+	 * der Bildbreite ein. Der Editor im Browser verwendet denselben Wert.
+	 */
+	public const MINDESTGROESSE = 0.02;
+
+	/**
 	 * Wählt aus den Dateien die Bilder aus, die noch keinen wichtigen Teil haben.
 	 *
 	 * „Kein wichtiger Teil“ heißt in Contao: Breite oder Höhe des Teils ist 0
@@ -101,6 +109,138 @@ final class Bildteil
 			return null;
 		}
 
+		$bild = self::vorschaubild($pfad, self::VORSCHAU);
+
+		if (null === $bild)
+		{
+			return null;
+		}
+
+		$teil = Bildanalyse::ausDatei($bild['pfad']);
+
+		if (null === $teil)
+		{
+			return null;
+		}
+
+		return array('teil' => $teil, 'url' => $bild['url']);
+	}
+
+	/**
+	 * Liefert ein Vorschaubild samt Vorschlag für den wichtigen Teil zum Nachbearbeiten von Hand.
+	 *
+	 * Anders als ermitteln() gibt es hier immer einen Vorschlag, solange sich
+	 * das Bild überhaupt verkleinern lässt: Findet die Analyse nichts (oder
+	 * fehlt GD), ist es die Bildmitte. Der Benutzer soll jedes Bild markieren
+	 * können, auch ein strukturloses.
+	 *
+	 * @param string $pfad  Pfad der Datei relativ zum Projektverzeichnis, wie in tl_files.path
+	 * @param int    $kante Kantenlänge des Vorschaubildes in Pixeln
+	 *
+	 * @return array{url: string, breite: int, hoehe: int, teil: array{x: float, y: float, width: float, height: float}, geschaetzt: bool}|null
+	 *         Adresse und Maße des Vorschaubildes, der Vorschlag in Bruchteilen
+	 *         und ob er aus der Analyse stammt; null, wenn sich kein
+	 *         Vorschaubild erzeugen lässt
+	 */
+	public static function vorschlag(string $pfad, int $kante): ?array
+	{
+		$bild = self::vorschaubild($pfad, $kante);
+
+		if (null === $bild)
+		{
+			return null;
+		}
+
+		$teil = Bildanalyse::verfuegbar() ? Bildanalyse::ausDatei($bild['pfad']) : null;
+
+		return array(
+			'url'        => $bild['url'],
+			'breite'     => $bild['breite'],
+			'hoehe'      => $bild['hoehe'],
+			'teil'       => $teil ?? array('x' => 0.25, 'y' => 0.25, 'width' => 0.5, 'height' => 0.5),
+			'geschaetzt' => null !== $teil,
+		);
+	}
+
+	/**
+	 * Prüft einen von Hand gesetzten wichtigen Teil und bringt ihn in die gespeicherte Form.
+	 *
+	 * Die Werte kommen aus dem Formular des Bildteil-Editors, sind also
+	 * Benutzereingaben: Sie müssen Zahlen sein und ein Rechteck innerhalb des
+	 * Bildes beschreiben. Kleine Überstände durch Rundung im Browser werden
+	 * abgeschnitten, alles andere wird abgewiesen.
+	 *
+	 * @param mixed $eingabe Erwartet ein Feld mit den Schlüsseln x, y, width, height
+	 *                       als Bruchteile der Bildgröße (Zahlen oder Zahlentexte)
+	 *
+	 * @return array{x: float, y: float, width: float, height: float}|null
+	 *         Das bereinigte Rechteck auf vier Nachkommastellen, oder null bei
+	 *         fehlenden, nicht numerischen oder unsinnigen Werten
+	 */
+	public static function bereinigen($eingabe): ?array
+	{
+		if (!\is_array($eingabe))
+		{
+			return null;
+		}
+
+		$werte = array();
+
+		foreach (array('x', 'y', 'width', 'height') as $schluessel)
+		{
+			$wert = $eingabe[$schluessel] ?? null;
+
+			if (\is_string($wert))
+			{
+				$wert = str_replace(',', '.', trim($wert));
+			}
+
+			if (!is_numeric($wert))
+			{
+				return null;
+			}
+
+			$werte[$schluessel] = (float) $wert;
+		}
+
+		if ($werte['x'] < 0 || $werte['y'] < 0 || $werte['x'] >= 1 || $werte['y'] >= 1)
+		{
+			return null;
+		}
+
+		// Rundungsüberstand am rechten und unteren Rand abschneiden
+		$werte['width'] = min($werte['width'], 1 - $werte['x']);
+		$werte['height'] = min($werte['height'], 1 - $werte['y']);
+
+		if ($werte['width'] < self::MINDESTGROESSE || $werte['height'] < self::MINDESTGROESSE)
+		{
+			return null;
+		}
+
+		return array(
+			'x'      => round($werte['x'], 4),
+			'y'      => round($werte['y'], 4),
+			'width'  => round($werte['width'], 4),
+			'height' => round($werte['height'], 4),
+		);
+	}
+
+	/**
+	 * Erzeugt über Contaos Bildfabrik ein in ein Quadrat eingepasstes Vorschaubild.
+	 *
+	 * Seiteneffekt: Das Vorschaubild wird, falls noch nicht vorhanden, im
+	 * Bildcache von Contao angelegt.
+	 *
+	 * @param string $pfad  Pfad der Datei relativ zum Projektverzeichnis
+	 * @param int    $kante Kantenlänge des Quadrats in Pixeln
+	 *
+	 * @return array{pfad: string, url: string, breite: int, hoehe: int}|null
+	 *         Absoluter Pfad, relative Adresse und Maße des Vorschaubildes;
+	 *         null, wenn die Datei fehlt, zu groß für den Speicher ist oder
+	 *         sich nicht verarbeiten lässt
+	 */
+	public static function vorschaubild(string $pfad, int $kante): ?array
+	{
 		$container = System::getContainer();
 		$projekt = (string) $container->getParameter('kernel.project_dir');
 		$quelle = $projekt . '/' . $pfad;
@@ -112,7 +252,7 @@ final class Bildteil
 
 		try
 		{
-			$bild = $container->get('contao.image.factory')->create($quelle, array(self::VORSCHAU, self::VORSCHAU, 'box'));
+			$bild = $container->get('contao.image.factory')->create($quelle, array($kante, $kante, 'box'));
 
 			// Die Bildfabrik liefert für noch nicht berechnete Größen nur ein
 			// Versprechen; hier wird das Bild sofort gebraucht
@@ -126,14 +266,18 @@ final class Bildteil
 				return null;
 			}
 
-			$teil = Bildanalyse::ausDatei($bild->getPath());
+			// Achtung Contao 4.13 mit GD: Bilder über gdMaxImgWidth/-Height
+			// (Vorgabe 3000 Pixel) verkleinert der Kern nicht und gibt das
+			// Original zurück. Es wird dann unverkleinert angezeigt und
+			// analysiert — der Speicher dafür ist oben bereits geprüft.
+			$groesse = $bild->getDimensions()->getSize();
 
-			if (null === $teil)
-			{
-				return null;
-			}
-
-			return array('teil' => $teil, 'url' => $bild->getUrl($projekt));
+			return array(
+				'pfad'   => $bild->getPath(),
+				'url'    => $bild->getUrl($projekt),
+				'breite' => (int) $groesse->getWidth(),
+				'hoehe'  => (int) $groesse->getHeight(),
+			);
 		}
 		catch (\Throwable $e)
 		{

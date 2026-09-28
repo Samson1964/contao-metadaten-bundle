@@ -32,6 +32,32 @@ $GLOBALS['TL_LANG']['METADATEN']['markiert'] = 'Bei %d Bildern wurde der wichtig
 $GLOBALS['TL_LANG']['METADATEN']['nichtAuswertbar'] = '%d Bilder ließen sich nicht auswerten (Datei fehlt, ist beschädigt, zu groß für den Speicher oder ohne erkennbare Struktur). Sie bleiben ohne wichtigen Teil.';
 $GLOBALS['TL_LANG']['METADATEN']['nochOffen'] = '%d Bilder sind noch offen, weil die Rechenzeit je Durchgang begrenzt ist. Bitte führen Sie den Auftrag erneut aus.';
 
+$GLOBALS['TL_LANG']['METADATEN']['bildteileLink'] = 'Diese Bilder von Hand markieren';
+
+/*
+ * Bildteil-Editor (key=bildteile)
+ */
+$GLOBALS['TL_LANG']['METADATEN']['bildteileHeadline'] = 'Wichtige Bildteile markieren: %s';
+$GLOBALS['TL_LANG']['METADATEN']['legendBildteile'] = 'Bilder ohne wichtigen Teil';
+$GLOBALS['TL_LANG']['METADATEN']['bildteileOffen'] = '%d Bilder in „%s“ haben noch keinen wichtigen Teil.';
+$GLOBALS['TL_LANG']['METADATEN']['bildteileFertig'] = 'Alle Bilder in „%s“ haben einen wichtigen Teil. Hier gibt es nichts mehr zu tun.';
+$GLOBALS['TL_LANG']['METADATEN']['bildteileAnleitung'] = 'Das rote Rechteck ist ein Vorschlag. Ziehen Sie es an die richtige Stelle, ändern Sie die Größe an den Ecken oder ziehen Sie daneben im Bild ein neues Rechteck auf. Mit der Tastatur: Pfeiltasten verschieben, Umschalt+Pfeiltasten ändern die Größe. Gespeichert werden nur Bilder mit Häkchen bei „übernehmen“; wer ein Rechteck anfasst, setzt das Häkchen automatisch. Alle anderen Bilder bleiben unmarkiert und erscheinen beim nächsten Mal wieder.';
+$GLOBALS['TL_LANG']['METADATEN']['bildteileUnlesbar'] = '%d Bilder lassen sich nicht darstellen (Datei fehlt, ist beschädigt oder zu groß für den Speicher):';
+$GLOBALS['TL_LANG']['METADATEN']['bildteileAlle'] = 'Alle anhaken';
+$GLOBALS['TL_LANG']['METADATEN']['bildteileKeine'] = 'Keines anhaken';
+$GLOBALS['TL_LANG']['METADATEN']['bildteileSeite'] = 'Seite %d von %d';
+$GLOBALS['TL_LANG']['METADATEN']['bildteileZurueck'] = '‹ vorige Seite';
+$GLOBALS['TL_LANG']['METADATEN']['bildteileWeiter'] = 'nächste Seite ›';
+$GLOBALS['TL_LANG']['METADATEN']['bildteileAria'] = 'Wichtiger Teil von %s, mit den Pfeiltasten verschieben';
+$GLOBALS['TL_LANG']['METADATEN']['bildteileUebernehmen'] = 'übernehmen';
+$GLOBALS['TL_LANG']['METADATEN']['bildteileVorschlag'] = 'Vorschlag';
+$GLOBALS['TL_LANG']['METADATEN']['bildteileVorschlagTitel'] = 'Das Rechteck auf den ursprünglichen Vorschlag zurücksetzen';
+$GLOBALS['TL_LANG']['METADATEN']['bildteileOhneSchaetzung'] = 'Kein Vorschlag möglich, die Bildmitte ist vorbelegt.';
+$GLOBALS['TL_LANG']['METADATEN']['bildteileSpeichern'] = 'Angehakte Bildteile speichern';
+$GLOBALS['TL_LANG']['METADATEN']['bildteileZurVorschau'] = 'Zur Vorschau des Auftrags';
+$GLOBALS['TL_LANG']['METADATEN']['bildteileNichts'] = 'Es war kein Bild angehakt, deshalb wurde nichts gespeichert.';
+$GLOBALS['TL_LANG']['METADATEN']['fehler']['bildteilUngueltig'] = 'Bei %d angehakten Bildern waren die Werte des Rechtecks unbrauchbar; sie wurden nicht gespeichert.';
+
 $GLOBALS['TL_LANG']['METADATEN']['ausfuehren'] = 'Auftrag jetzt ausführen';
 $GLOBALS['TL_LANG']['METADATEN']['keineTreffer'] = 'In den %d ausgewählten Dateien ändert sich nichts.';
 $GLOBALS['TL_LANG']['METADATEN']['treffer'] = '%d von %d ausgewählten Dateien werden geändert. Bitte prüfen Sie die Liste, bevor Sie die Änderung ausführen.';

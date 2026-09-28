@@ -18,10 +18,10 @@ use Schachbulle\ContaoMetadatenBundle\Modules\Metadaten;
  * Dateiverwaltung.
  *
  * Das Modul verwaltet die Aufträge in tl_metadaten mit Contaos DC_Table;
- * dadurch steht im Formular der echte Dateibaum zur Verfügung. Der Schlüssel
- * „vorschau“ wird von Contao aufgerufen, sobald in der Adresszeile
- * &key=vorschau steht (Operation in der Auftragsliste) — in 4.13 und 5.x
- * gleich. array_insert() aus dem Kern gibt es unter Contao 5 nicht mehr,
+ * dadurch steht im Formular der echte Dateibaum zur Verfügung. Die Schlüssel
+ * „vorschau“ und „bildteile“ werden von Contao aufgerufen, sobald in der
+ * Adresszeile &key=vorschau bzw. &key=bildteile steht (Operationen in der
+ * Auftragsliste) — in 4.13 und 5.x gleich. array_insert() aus dem Kern gibt es unter Contao 5 nicht mehr,
  * deshalb das Einfügen von Hand; das true in array_slice() erhält die
  * Modulnamen als Schlüssel.
  */
@@ -29,7 +29,8 @@ $system = $GLOBALS['BE_MOD']['system'] ?? array();
 $neu = array(
 	'metadaten' => array(
 		'tables'   => array('tl_metadaten'),
-		'vorschau' => array(Metadaten::class, 'vorschau'),
+		'vorschau'  => array(Metadaten::class, 'vorschau'),
+		'bildteile' => array(Metadaten::class, 'bildteile'),
 	),
 );
 $position = array_search('files', array_keys($system), true);

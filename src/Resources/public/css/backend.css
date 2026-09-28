@@ -114,3 +114,128 @@
 	margin-left: 12px;
 	font-weight: 600;
 }
+
+/*
+ * Bildteil-Editor (key=bildteile)
+ */
+
+.metadaten-werkzeuge {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px;
+}
+
+.metadaten-werkzeuge a.tl_submit {
+	text-decoration: none;
+}
+
+.metadaten-seite {
+	margin-left: auto;
+	font-size: .8rem;
+	color: var(--text-secondary, #666);
+}
+
+.metadaten-karten {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+	gap: 16px;
+	align-items: start;
+}
+
+.metadaten-karte {
+	margin: 0;
+	padding: 8px;
+	border: 1px solid var(--border, #ddd);
+	border-radius: 3px;
+	background: var(--content-bg, #fff);
+}
+
+/* Angehakte Karten heben sich ab, damit vor dem Speichern sichtbar ist,
+   was geschrieben wird */
+.metadaten-karte.metadaten-angehakt {
+	border-color: var(--green, #2a7);
+	box-shadow: 0 0 0 1px var(--green, #2a7);
+}
+
+/* Die Bildfläche umschließt das Bild genau; alle Prozentangaben des
+   Rechtecks beziehen sich auf sie. touch-action: none überlässt Gesten dem
+   Skript, sonst würde der Browser beim Ziehen die Seite verschieben. */
+.metadaten-editor {
+	position: relative;
+	display: block;
+	overflow: hidden;
+	line-height: 0;
+	cursor: crosshair;
+	touch-action: none;
+	user-select: none;
+	-webkit-user-select: none;
+}
+
+.metadaten-editor:focus {
+	outline: 2px solid var(--focus, #006494);
+	outline-offset: 2px;
+}
+
+.metadaten-editor img {
+	display: block;
+	width: 100%;
+	height: auto;
+	pointer-events: none;
+}
+
+/* Im Editor dunkelt der Schatten alles außerhalb des Rechtecks ab */
+.metadaten-editor .metadaten-teil {
+	box-shadow: 0 0 0 9999px rgba(0, 0, 0, .45);
+	cursor: move;
+	pointer-events: auto;
+}
+
+.metadaten-griff {
+	position: absolute;
+	width: 14px;
+	height: 14px;
+	box-sizing: border-box;
+	border: 2px solid #f00;
+	background: #fff;
+}
+
+.metadaten-griff-nw { left: -8px; top: -8px; cursor: nwse-resize; }
+.metadaten-griff-ne { right: -8px; top: -8px; cursor: nesw-resize; }
+.metadaten-griff-sw { left: -8px; bottom: -8px; cursor: nesw-resize; }
+.metadaten-griff-se { right: -8px; bottom: -8px; cursor: nwse-resize; }
+
+.metadaten-karte figcaption {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	margin-top: 8px;
+	font-size: .8rem;
+	line-height: 1.4;
+}
+
+.metadaten-name {
+	font-weight: 600;
+	word-break: break-all;
+}
+
+.metadaten-zeile {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+}
+
+.metadaten-zuruecksetzen {
+	margin-left: auto;
+	padding: 2px 8px;
+	border: 1px solid var(--border, #ccc);
+	border-radius: 2px;
+	background: transparent;
+	color: inherit;
+	font-size: .75rem;
+	cursor: pointer;
+}
+
+.metadaten-hinweis {
+	color: var(--text-secondary, #666);
+}

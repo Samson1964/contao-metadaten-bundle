@@ -1,5 +1,16 @@
 # Metadaten Changelog
 
+## Version 1.3.0 (2026-09-28)
+
+Keine Datenbankaktualisierung nötig.
+
+* Add: Operation „Wichtige Bildteile markieren“ in der Auftragsliste — zeigt die Bilder der Dateiauswahl, die noch keinen wichtigen Teil haben, je zwölf auf einer Seite, mit einem Vorschlag als Rechteck
+* Add: Das Rechteck lässt sich im Browser verschieben, an den Ecken in der Größe ändern, neu aufziehen und mit den Pfeiltasten bewegen; „Vorschlag“ stellt den Ausgangswert wieder her
+* Add: Gespeichert werden nur Bilder mit Häkchen „übernehmen“; wer ein Rechteck anfasst, setzt das Häkchen automatisch. Jedes gespeicherte Bild bekommt eine Version
+* Add: Link „Diese Bilder von Hand markieren“ auf der Vorschauseite des Auftrags
+* Change: Der Hilfetext von „Wichtigen Bildteil automatisch markieren“ sagt jetzt deutlich, dass die Schätzung keine Gesichter erkennt, und verweist auf die neue Operation
+* Change: Der Bildteil-Editor nimmt nur Bilder an, die zur Dateiauswahl des Auftrags gehören und noch unmarkiert sind — eine manipulierte Eingabe erreicht keine fremden Dateien und überschreibt keine bestehende Markierung
+
 ## Version 1.2.0 (2026-09-27)
 
 **Datenbankaktualisierung nötig** (neue Spalte `wichtigerTeil` in `tl_metadaten`).

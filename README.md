@@ -72,13 +72,44 @@ Werte stehen; abgeschaltet werden die gewählten Felder in allen ausgewählten
 Dateien überschrieben — auch mit einem leeren Wert, was einem Löschen
 gleichkommt.
 
-### Wichtiger Bildteil
+### Wichtige Bildteile von Hand markieren
 
 Contao merkt sich zu jedem Bild einen „wichtigen Teil“, der beim Zuschneiden
-im Bild bleibt. Von Hand wird er in der Dateiverwaltung als Rechteck
-aufgezogen — bei hunderten Fotos eine Fleißarbeit. Mit **„Wichtigen Bildteil
-automatisch markieren“** schätzt das Modul ihn für alle ausgewählten Bilder,
-die **noch keinen** haben. Bereits markierte Bilder werden nie angefasst.
+im Bild bleibt. In der Dateiverwaltung wird er Bild für Bild als Rechteck
+aufgezogen — bei hunderten Fotos eine Fleißarbeit, zumal man die unmarkierten
+Bilder erst suchen muss.
+
+Die Operation **„Wichtige Bildteile markieren“** in der Auftragsliste zeigt
+genau diese Bilder: alle aus der Dateiauswahl des Auftrags (Ordner,
+Unterordner, Dateiendungen), die **noch keinen** wichtigen Teil haben, zwölf
+je Seite. Betriebsart und Metadaten des Auftrags spielen dabei keine Rolle.
+
+Jedes Bild trägt ein rotes Rechteck als Vorschlag. So wird es zurechtgerückt:
+
+| Handgriff | Wirkung |
+| --- | --- |
+| Am Rechteck ziehen | verschieben |
+| An einer Ecke ziehen | Größe ändern |
+| Daneben ins Bild ziehen | neues Rechteck aufziehen |
+| Pfeiltasten | verschieben, mit Umschalttaste Größe ändern |
+| Knopf „Vorschlag“ | Ausgangswert wiederherstellen |
+
+Gespeichert werden nur Bilder mit Häkchen bei **„übernehmen“**. Wer ein
+Rechteck anfasst, setzt das Häkchen automatisch; „Alle anhaken“ übernimmt die
+Vorschläge der ganzen Seite. Bilder ohne Häkchen bleiben unmarkiert und
+erscheinen beim nächsten Aufruf wieder. Gespeicherte Bilder fallen aus der
+Liste, die übrigen rücken nach.
+
+Der Editor läuft mit Maus, Finger und Tastatur und braucht keine Bibliothek.
+
+### Wichtiger Bildteil automatisch
+
+Mit dem Häkchen **„Wichtigen Bildteil automatisch markieren“** im Auftrag
+schätzt das Modul den wichtigen Teil beim Ausführen ungeprüft für alle
+ausgewählten Bilder, die noch keinen haben. Bereits markierte Bilder werden
+nie angefasst. Derselbe Schätzwert ist der Vorschlag im Editor oben — dort
+lässt er sich vor dem Speichern berichtigen, hier nicht. Für Personenfotos
+ist deshalb der Editor der bessere Weg.
 
 Das Verfahren bewertet jedes Pixel eines Vorschaubildes nach Detailreichtum,
 Nähe zu Hauttönen und Farbsättigung und sucht das Fenster, in dem diese
@@ -103,6 +134,10 @@ Gut zu wissen:
   übrig, meldet das Modul ihre Zahl; ein erneutes Ausführen macht dort weiter.
 * Ohne Imagick überspringt das Modul Bilder, die nicht in den PHP-Speicher
   passen würden, statt die Seite abbrechen zu lassen.
+* Contao 4.13 verkleinert mit GD keine Bilder über 3000 Pixel Kantenlänge
+  (Einstellung `gdMaxImgWidth`/`gdMaxImgHeight`) und liefert das Original
+  zurück. Solche Bilder erscheinen im Editor unverkleinert und laden
+  entsprechend langsam; markieren lassen sie sich trotzdem.
 * Soll ein Auftrag nur Bildteile markieren, ist „Metadaten nicht ändern“ die
   passende Betriebsart.
 
@@ -161,7 +196,14 @@ Die Kernlogik (Lesen, Prüfen, Ersetzen, Setzen, Vergleichen) steckt in
 Auftrag in `src/Classes/Auftrag.php`, die Schätzung des wichtigen Bildteils
 in `src/Classes/Bildanalyse.php`; alle drei kommen ohne Contao und ohne
 Datenbank aus. `src/Classes/Bildteil.php` verbindet die Bildanalyse mit
-Contaos Bildfabrik. Die DCA `tl_metadaten` liefert das Formular mit Dateibaum, das
+Contaos Bildfabrik und prüft die Eingaben des Editors.
+
+Der Bildteil-Editor besteht aus `be_metadaten_bildteile.html5` und
+`src/Resources/public/js/bildteile.js`. Das Skript hängt sich nur an
+`document` und findet seine Elemente über `data-`Attribute; deshalb läuft es
+unter Contao 4.13 (MooTools) wie unter Contao 5 (Stimulus und Turbo), ohne
+eine der beiden Bibliotheken zu benutzen. Der Prüfstand kontrolliert, dass
+Skript und Template dieselben Attribute kennen. Die DCA `tl_metadaten` liefert das Formular mit Dateibaum, das
 Modul `src/Modules/Metadaten.php` kümmert sich um Vorschau, Dateiauswahl,
 Versionen und Speichern.
 
