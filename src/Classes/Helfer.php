@@ -21,12 +21,42 @@ use Symfony\Component\Security\Csrf\CsrfTokenManagerInterface;
 /**
  * Kleine Helfer rund um den Contao-Behälter, die in 4.13 und 5.x gleich funktionieren.
  *
- * Beide Methoden gehen defensiv vor und liefern im Zweifel einen neutralen
+ * Die Methoden gehen defensiv vor und liefern im Zweifel einen neutralen
  * Wert, damit sie auch außerhalb einer laufenden Contao-Anfrage — etwa im
  * Prüfstand mit einem Minimalbehälter — nicht abbrechen.
  */
 final class Helfer
 {
+	/**
+	 * Recht „Dateien bearbeiten, kopieren und verschieben“ (fop f2).
+	 *
+	 * Als Zeichenkette statt über ContaoCorePermissions::USER_CAN_RENAME_FILE,
+	 * damit der Prüfstand ohne Sicherheitskomponente auskommt; der Wert ist
+	 * in Contao 4.13 und 5.7 derselbe.
+	 */
+	public const RECHT_DATEIEN = 'contao_user.fop.f2';
+
+	/**
+	 * Stellt fest, ob der angemeldete Benutzer Dateien bearbeiten darf.
+	 *
+	 * Fragt den Sicherheitsdienst von Contao; Administratoren dürfen immer.
+	 * Ohne Behälter oder ohne Sicherheitsdienst lautet die Antwort „nein“:
+	 * Ein Werkzeug, das Dateien umbenennt, soll im Zweifel gesperrt sein.
+	 *
+	 * @return bool true, wenn das Recht fop f2 vorliegt
+	 */
+	public static function darfDateienBearbeiten(): bool
+	{
+		$container = System::getContainer();
+
+		if (null === $container || !$container->has('security.helper'))
+		{
+			return false;
+		}
+
+		return (bool) $container->get('security.helper')->isGranted(self::RECHT_DATEIEN);
+	}
+
 	/**
 	 * Stellt fest, ob die laufende Anfrage eine Backend-Anfrage ist.
 	 *

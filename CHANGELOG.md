@@ -1,5 +1,15 @@
 # Metadaten Changelog
 
+## Version 1.8.0 (2026-09-29)
+
+**Datenbankaktualisierung nötig** (neue Spalte `dateinamen` in `tl_metadaten`). Die öffentlichen Dateien müssen neu verlinkt werden (neues Symbol).
+
+* Change: **Das Werkzeug ist in die Dateiverwaltung umgezogen.** Die Schaltfläche „Metadaten“ über der Dateiliste führt zur Liste der Aufträge (`do=files&table=tl_metadaten`), „Zurück zur Dateiverwaltung“ wieder hinaus. Der eigene Menüpunkt „Metadaten“ in der Gruppe System entfällt; Lesezeichen auf `do=metadaten` funktionieren nicht mehr
+* Change: Rechte: Nicht-Administratoren brauchen das Modul Dateiverwaltung und das Dateirecht „Dateien bearbeiten, kopieren und verschieben“ (fop f2), das Contao auch für die Bearbeitungsmaske einer Datei verlangt. Ohne dieses Recht erscheint die Schaltfläche nicht, und Auftragsliste, Vorschau und Bildteil-Editor sind gesperrt. Das frühere Modulrecht „Metadaten“ in den Benutzergruppen ist wirkungslos
+* Change: Die Schlüssel der Operationen heißen `metadaten_vorschau` und `metadaten_bildteile`, damit sie im Modul Dateiverwaltung nicht mit anderen Erweiterungen zusammenstoßen
+* Add: **Dateinamen bereinigen** als Teil eines Auftrags, mit den Regeln Umlaute (ä → ae), Sonderzeichen (Akzente weg, Rest zum Bindestrich), Leerzeichen (zum Bindestrich) und Kleinschreibung (auch die Endung). Die Vorschau zeigt jeden neuen Namen; ist er vergeben oder käme er doppelt vor, wird die Datei übersprungen, sodass keine Datei eine andere überschreibt. Der Eintrag in der Dateiverwaltung wird fortgeschrieben, die UUID bleibt
+* Add: Unit-Tests der Namensbereinigung (`tests/Classes/DateinameTest.php`); der Prüfstand prüft Einhängung in die Dateiverwaltung, Rechteschranke und Beschriftungen
+
 ## Version 1.7.0 (2026-09-29)
 
 Keine Datenbankaktualisierung nötig. Die öffentlichen Dateien des Bundles müssen neu verlinkt werden (Contao Manager oder `contao:symlinks`), sonst fehlen die neuen Skripte.

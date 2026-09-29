@@ -40,6 +40,11 @@ $GLOBALS['TL_LANG']['tl_metadaten']['ordnerFehlt'] = 'Ordner nicht mehr vorhande
 $GLOBALS['TL_LANG']['tl_metadaten']['modusOptionen']['ersetzen'] = 'Suchen und ersetzen';
 $GLOBALS['TL_LANG']['tl_metadaten']['modusOptionen']['setzen'] = 'Werte setzen';
 $GLOBALS['TL_LANG']['tl_metadaten']['modusOptionen']['keine'] = 'Metadaten nicht ändern';
+$GLOBALS['TL_LANG']['tl_metadaten']['dateinamen'] = array('Dateinamen bereinigen', 'Die Dateien der Auswahl werden beim Ausführen nach diesen Regeln umbenannt; die Vorschau zeigt vorher jeden neuen Namen. Inhaltselemente, Galerien und Insert-Tags verweisen über die UUID auf Dateien und bleiben gültig. Fest eingetragene Pfade, etwa in Texten des Editors oder in Verweisen von außen, zeigen danach ins Leere. Ordner werden nicht umbenannt.');
+$GLOBALS['TL_LANG']['tl_metadaten']['dateinamenOptionen']['klein'] = 'Kleinschreibung, auch die Dateiendung (Foto.JPG → foto.jpg)';
+$GLOBALS['TL_LANG']['tl_metadaten']['dateinamenOptionen']['umlaute'] = 'Umlaute ersetzen (ä → ae, ö → oe, ü → ue, ß → ss)';
+$GLOBALS['TL_LANG']['tl_metadaten']['dateinamenOptionen']['leerzeichen'] = 'Leerzeichen durch Bindestriche ersetzen';
+$GLOBALS['TL_LANG']['tl_metadaten']['dateinamenOptionen']['sonderzeichen'] = 'Sonderzeichen ersetzen: Akzente entfernen (é → e), alles außer Buchstaben, Ziffern, Punkt, Binde- und Unterstrich durch Bindestriche ersetzen';
 $GLOBALS['TL_LANG']['tl_metadaten']['mitUnterordnern'] = '(mit Unterordnern)';
 
 /*
@@ -49,6 +54,7 @@ $GLOBALS['TL_LANG']['tl_metadaten']['titel_legend'] = 'Auftrag';
 $GLOBALS['TL_LANG']['tl_metadaten']['auswahl_legend'] = 'Auswahl der Dateien';
 $GLOBALS['TL_LANG']['tl_metadaten']['modus_legend'] = 'Bearbeitung';
 $GLOBALS['TL_LANG']['tl_metadaten']['bild_legend'] = 'Wichtiger Bildteil';
+$GLOBALS['TL_LANG']['tl_metadaten']['dateinamen_legend'] = 'Dateinamen';
 
 /*
  * Operationen
@@ -59,4 +65,5 @@ $GLOBALS['TL_LANG']['tl_metadaten']['copy'] = array('Auftrag duplizieren', 'Auft
 $GLOBALS['TL_LANG']['tl_metadaten']['delete'] = array('Auftrag löschen', 'Auftrag ID %s löschen');
 $GLOBALS['TL_LANG']['tl_metadaten']['show'] = array('Details', 'Details des Auftrags ID %s anzeigen');
 $GLOBALS['TL_LANG']['tl_metadaten']['vorschau'] = array('Vorschau und Ausführen', 'Änderungen des Auftrags ID %s anzeigen und ausführen');
+$GLOBALS['TL_LANG']['tl_metadaten']['dateiverwaltung'] = array('Zurück zur Dateiverwaltung', 'Zurück zur Dateiverwaltung');
 $GLOBALS['TL_LANG']['tl_metadaten']['bildteile'] = array('Wichtige Bildteile markieren', 'Bilder des Auftrags ID %s ohne wichtigen Teil ansehen und von Hand markieren');

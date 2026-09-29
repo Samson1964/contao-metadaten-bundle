@@ -13,9 +13,12 @@ namespace Schachbulle\ContaoMetadatenBundle\Modules;
 
 use Contao\BackendTemplate;
 use Contao\BackendUser;
+use Contao\CoreBundle\Exception\AccessDeniedException;
 use Contao\CoreBundle\Exception\RedirectResponseException;
 use Contao\Database;
 use Contao\DataContainer;
+use Contao\Dbafs;
+use Contao\Files;
 use Contao\FilesModel;
 use Contao\Input;
 use Contao\Message;
@@ -26,6 +29,7 @@ use Schachbulle\ContaoMetadatenBundle\Classes\Auftrag;
 use Schachbulle\ContaoMetadatenBundle\Classes\Bearbeitung;
 use Schachbulle\ContaoMetadatenBundle\Classes\Bildanalyse;
 use Schachbulle\ContaoMetadatenBundle\Classes\Bildteil;
+use Schachbulle\ContaoMetadatenBundle\Classes\Dateiname;
 use Schachbulle\ContaoMetadatenBundle\Classes\Helfer;
 use Schachbulle\ContaoMetadatenBundle\Model\MetadatenModel;
 
@@ -111,6 +115,7 @@ class Metadaten
 	 */
 	public function vorschau($dc = null): string
 	{
+		$this->pruefeZugriff();
 		System::loadLanguageFile('default');
 		System::loadLanguageFile('tl_metadaten');
 
@@ -153,10 +158,11 @@ class Metadaten
 			$dateien = $this->dateien($row, $ordnerPfad, $freigaben);
 			$aenderungen = $this->aenderungen($dateien, $auftrag, $fehler);
 			$kandidaten = $auftrag->wichtigerTeil ? Bildteil::kandidaten($dateien) : array();
+			$umbenennungen = $this->umbenennungen($dateien, $auftrag->dateinamen);
 
 			if (!$fehler && self::FORMULAR === Input::post('FORM_SUBMIT'))
 			{
-				$geschrieben = $this->ausfuehren($aenderungen, $kandidaten);
+				$geschrieben = $this->ausfuehren($aenderungen, $kandidaten, $umbenennungen);
 
 				$this->meldeErgebnis($geschrieben, \count($kandidaten));
 
@@ -174,6 +180,11 @@ class Metadaten
 				'zeilen'   => \array_slice($aenderungen, 0, self::VORSCHAU_MAX),
 				'gekuerzt' => \count($aenderungen) > self::VORSCHAU_MAX,
 				'metadaten' => Auftrag::MODUS_KEINE !== $auftrag->modus,
+				'dateinamen' => (bool) $auftrag->dateinamen,
+				'umbenennungen' => \array_slice($umbenennungen, 0, self::VORSCHAU_MAX),
+				'umbenennbar' => \count(array_filter($umbenennungen, static fn (array $u): bool => !$u['konflikt'])),
+				'konflikte' => \count(array_filter($umbenennungen, static fn (array $u): bool => $u['konflikt'])),
+				'umbenennungenGekuerzt' => \count($umbenennungen) > self::VORSCHAU_MAX,
 			);
 
 			if ($auftrag->wichtigerTeil)
@@ -198,14 +209,14 @@ class Metadaten
 		$template->felder = $this->feldbezeichnungen();
 		$template->vorschau = $vorschau;
 		$template->bildteil = $bildteil;
-		$template->ausfuehrbar = null !== $vorschau && ($vorschau['anzahl'] > 0 || (null !== $bildteil && $bildteil['anzahl'] > 0 && $bildteil['verfuegbar']));
+		$template->ausfuehrbar = null !== $vorschau && ($vorschau['anzahl'] > 0 || $vorschau['umbenennbar'] > 0 || (null !== $bildteil && $bildteil['anzahl'] > 0 && $bildteil['verfuegbar']));
 		$template->ergebnis = $ergebnis;
 		$template->meldungen = Message::generate();
 		$template->requestToken = Helfer::requestToken();
 		$template->action = StringUtil::ampersand($request->getRequestUri());
 		$template->zurueck = $this->listenUrl();
 		$template->bearbeiten = $this->bearbeitenUrl($id);
-		$template->bildteileUrl = $this->backendUrl(array('do' => 'metadaten', 'key' => 'bildteile', 'id' => $id));
+		$template->bildteileUrl = $this->auftragUrl(array('key' => 'metadaten_bildteile', 'id' => $id));
 		$template->formular = self::FORMULAR;
 
 		return $template->parse();
@@ -235,6 +246,7 @@ class Metadaten
 	 */
 	public function bildteile($dc = null): string
 	{
+		$this->pruefeZugriff();
 		System::loadLanguageFile('default');
 		System::loadLanguageFile('tl_metadaten');
 
@@ -311,17 +323,35 @@ class Metadaten
 		$template->unlesbar = $unlesbar;
 		$template->seite = $seite;
 		$template->seiten = $seiten;
-		$template->urlZurueckSeite = $seite > 1 ? $this->backendUrl(array('do' => 'metadaten', 'key' => 'bildteile', 'id' => $id, 'seite' => $seite - 1)) : '';
-		$template->urlNaechsteSeite = $seite < $seiten ? $this->backendUrl(array('do' => 'metadaten', 'key' => 'bildteile', 'id' => $id, 'seite' => $seite + 1)) : '';
+		$template->urlZurueckSeite = $seite > 1 ? $this->auftragUrl(array('key' => 'metadaten_bildteile', 'id' => $id, 'seite' => $seite - 1)) : '';
+		$template->urlNaechsteSeite = $seite < $seiten ? $this->auftragUrl(array('key' => 'metadaten_bildteile', 'id' => $id, 'seite' => $seite + 1)) : '';
 		$template->mindestgroesse = Bildteil::MINDESTGROESSE;
 		$template->meldungen = Message::generate();
 		$template->requestToken = Helfer::requestToken();
 		$template->action = StringUtil::ampersand($request->getRequestUri());
 		$template->zurueck = $this->listenUrl();
-		$template->vorschauUrl = $this->backendUrl(array('do' => 'metadaten', 'key' => 'vorschau', 'id' => $id));
+		$template->vorschauUrl = $this->auftragUrl(array('key' => 'metadaten_vorschau', 'id' => $id));
 		$template->formular = self::FORMULAR_BILDTEILE;
 
 		return $template->parse();
+	}
+
+	/**
+	 * Weist Benutzer ohne das Recht „Dateien bearbeiten“ ab.
+	 *
+	 * Steht am Anfang beider Einstiege (Vorschau und Bildteil-Editor), vor
+	 * jedem Zugriff auf Sitzung, Datenbank oder Dateien. Dieselbe Schranke
+	 * gilt in tl_metadaten (onload_callback) und für die globale Operation in
+	 * der Dateiverwaltung.
+	 *
+	 * @throws AccessDeniedException wenn das Recht fop f2 fehlt
+	 */
+	private function pruefeZugriff(): void
+	{
+		if (!Helfer::darfDateienBearbeiten())
+		{
+			throw new AccessDeniedException('Dateien bearbeiten ist für dieses Benutzerkonto nicht erlaubt.');
+		}
 	}
 
 	/**
@@ -673,7 +703,7 @@ class Metadaten
 	 *         der insgesamt untersuchten Bilder sowie die Pfade aller
 	 *         geänderten Dateien
 	 */
-	private function ausfuehren(array $aenderungen, array $kandidaten): array
+	private function ausfuehren(array $aenderungen, array $kandidaten, array $umbenennungen = array()): array
 	{
 		$auftraege = array();
 
@@ -713,12 +743,142 @@ class Metadaten
 
 		$this->schreiben($auftraege);
 
+		// Umbenennen zuletzt: Metadaten und Bildteile sind über die ID
+		// geschrieben, die Pfade der Auftragsliste stimmen also noch
+		$dateien = array_column($auftraege, 'path', 'id');
+		$umbenannt = $this->umbenennen($umbenennungen);
+
+		foreach ($umbenannt['erledigt'] as $alt => $neu)
+		{
+			$dateien = array_values(array_diff($dateien, array($alt)));
+			$dateien[] = $alt.' → '.basename($neu);
+		}
+
 		return array(
 			'metadaten' => \count($aenderungen),
 			'markiert'  => $markiert,
 			'versucht'  => $versucht,
-			'dateien'   => array_column($auftraege, 'path'),
+			'umbenannt' => \count($umbenannt['erledigt']),
+			'fehlgeschlagen' => $umbenannt['fehlgeschlagen'],
+			'dateien'   => array_values($dateien),
 		);
+	}
+
+	/**
+	 * Plant die Umbenennung der Dateien nach den Regeln des Auftrags.
+	 *
+	 * Umbenannt wird nichts; die Liste dient der Vorschau und der Ausführung.
+	 * Ein Konflikt liegt vor, wenn der neue Name im selben Ordner schon
+	 * vergeben ist, sei es durch eine andere Datei auf der Festplatte oder
+	 * durch eine andere Datei dieser Liste, die denselben neuen Namen bekäme.
+	 * Verglichen wird ohne Beachtung der Groß- und Kleinschreibung, weil
+	 * Windows- und macOS-Server „Foto.jpg“ und „foto.jpg“ als dieselbe Datei
+	 * sehen. Ändert sich nur die Schreibweise der Datei selbst, ist das kein
+	 * Konflikt.
+	 *
+	 * Wichtig: Contaos Files::rename() überschreibt ein vorhandenes Ziel
+	 * ohne Rückfrage. Diese Prüfung ist deshalb der einzige Schutz davor,
+	 * dass ein Foto ein anderes ersetzt.
+	 *
+	 * @param array<int, array{id: int|string, path: string}> $dateien Dateien aus dateien()
+	 * @param string[]                                         $regeln  Regeln aus Auftrag::$dateinamen
+	 *
+	 * @return array<int, array{id: int, alt: string, neu: string, konflikt: bool}>
+	 *         Nur Dateien, deren Name sich ändert, in der Reihenfolge der Eingabe
+	 */
+	private function umbenennungen(array $dateien, array $regeln): array
+	{
+		if (!$regeln)
+		{
+			return array();
+		}
+
+		$projekt = (string) System::getContainer()->getParameter('kernel.project_dir');
+		$liste = array();
+		$vergeben = array();
+
+		foreach ($dateien as $datei)
+		{
+			$alt = (string) $datei['path'];
+			$neuerName = Dateiname::bereinigen(basename($alt), $regeln);
+
+			if ($neuerName === basename($alt))
+			{
+				continue;
+			}
+
+			$neu = \dirname($alt).'/'.$neuerName;
+			$schluessel = mb_strtolower($neu);
+			$belegt = file_exists($projekt.'/'.$neu) && !Dateiname::nurSchreibweise($alt, $neu);
+			$konflikt = $belegt || isset($vergeben[$schluessel]);
+
+			if (!$konflikt)
+			{
+				$vergeben[$schluessel] = true;
+			}
+
+			$liste[] = array('id' => (int) $datei['id'], 'alt' => $alt, 'neu' => $neu, 'konflikt' => $konflikt);
+		}
+
+		return $liste;
+	}
+
+	/**
+	 * Benennt die geplanten Dateien um und schreibt die Dateiverwaltung fort.
+	 *
+	 * Die Datei wird mit Contaos Files::rename() umbenannt, der Eintrag in
+	 * tl_files mit Dbafs::moveResource() nachgezogen. Beides gibt es in 4.13
+	 * und 5.x; moveResource behält den Datensatz und damit die UUID, auf die
+	 * Inhaltselemente, Galerien und Insert-Tags verweisen. Konflikte werden
+	 * übersprungen. Unmittelbar vor dem Umbenennen wird das Ziel noch einmal
+	 * geprüft, falls es seit der Vorschau entstanden ist.
+	 *
+	 * Eine Version legt das Umbenennen nicht an: Das Zurücksetzen einer
+	 * Version änderte nur den Datensatz, nicht die Datei auf der Festplatte.
+	 *
+	 * @param array<int, array{id: int, alt: string, neu: string, konflikt: bool}> $umbenennungen Plan aus umbenennungen()
+	 *
+	 * @return array{erledigt: array<string, string>, fehlgeschlagen: int}
+	 *         Alte und neue Pfade der umbenannten Dateien sowie die Zahl der
+	 *         Konflikte und fehlgeschlagenen Versuche
+	 */
+	private function umbenennen(array $umbenennungen): array
+	{
+		$projekt = (string) System::getContainer()->getParameter('kernel.project_dir');
+		$dateien = Files::getInstance();
+		$erledigt = array();
+		$fehlgeschlagen = 0;
+
+		foreach ($umbenennungen as $plan)
+		{
+			$belegt = file_exists($projekt.'/'.$plan['neu']) && !Dateiname::nurSchreibweise($plan['alt'], $plan['neu']);
+
+			if ($plan['konflikt'] || $belegt || !is_file($projekt.'/'.$plan['alt']))
+			{
+				++$fehlgeschlagen;
+				continue;
+			}
+
+			try
+			{
+				if (!$dateien->rename($plan['alt'], $plan['neu']))
+				{
+					++$fehlgeschlagen;
+					continue;
+				}
+			}
+			catch (\RuntimeException $e)
+			{
+				// Ungültiger Pfad laut Contao; die Datei bleibt, wie sie ist
+				++$fehlgeschlagen;
+				continue;
+			}
+
+			Dbafs::moveResource($plan['alt'], $plan['neu']);
+			$erledigt[$plan['alt']] = $plan['neu'];
+		}
+
+		return array('erledigt' => $erledigt, 'fehlgeschlagen' => $fehlgeschlagen);
 	}
 
 	/**
@@ -858,6 +1018,16 @@ class Metadaten
 		{
 			Message::addInfo(sprintf($texte['nochOffen'] ?? '%d Bilder noch offen.', $offen));
 		}
+
+		if (($geschrieben['umbenannt'] ?? 0) > 0)
+		{
+			Message::addConfirmation(sprintf($texte['umbenannt'] ?? '%d Dateien umbenannt.', $geschrieben['umbenannt']));
+		}
+
+		if (($geschrieben['fehlgeschlagen'] ?? 0) > 0)
+		{
+			Message::addError(sprintf($texte['nichtUmbenannt'] ?? '%d Dateien nicht umbenannt.', $geschrieben['fehlgeschlagen']));
+		}
 	}
 
 	/**
@@ -895,6 +1065,12 @@ class Metadaten
 			array('label' => $lang['endungen'][0] ?? 'Dateiendungen', 'wert' => '' !== trim((string) $row['endungen']) ? (string) $row['endungen'] : ($lang['alleDateien'] ?? 'alle')),
 			array('label' => $lang['modus'][0] ?? 'Betriebsart', 'wert' => (string) ($lang['modusOptionen'][$auftrag->modus] ?? $auftrag->modus)),
 			array('label' => $lang['wichtigerTeil'][0] ?? 'Wichtigen Bildteil markieren', 'wert' => $auftrag->wichtigerTeil ? $ja : $nein),
+			array(
+				'label' => $lang['dateinamen'][0] ?? 'Dateinamen bereinigen',
+				'wert'  => $auftrag->dateinamen
+					? implode(', ', array_map(static fn (string $r): string => (string) ($lang['dateinamenOptionen'][$r] ?? $r), $auftrag->dateinamen))
+					: $nein,
+			),
 		);
 
 		// Ohne Änderung der Metadaten gibt es weder Sprache noch Felder zu zeigen
@@ -958,7 +1134,7 @@ class Metadaten
 	 */
 	private function listenUrl(): string
 	{
-		return $this->backendUrl(array('do' => 'metadaten'));
+		return $this->auftragUrl(array());
 	}
 
 	/**
@@ -970,7 +1146,22 @@ class Metadaten
 	 */
 	private function bearbeitenUrl(int $id): string
 	{
-		return $this->backendUrl(array('do' => 'metadaten', 'act' => 'edit', 'id' => $id));
+		return $this->auftragUrl(array('act' => 'edit', 'id' => $id));
+	}
+
+	/**
+	 * Baut eine Adresse innerhalb der Auftragsliste im Modul Dateiverwaltung.
+	 *
+	 * Seit Version 1.8.0 hängt tl_metadaten als zweite Tabelle in do=files;
+	 * jede Adresse braucht deshalb do=files und table=tl_metadaten.
+	 *
+	 * @param array<string, mixed> $parameter Weitere Abfrageparameter, etwa key, act oder id
+	 *
+	 * @return string Die Adresse mit Anfrage-Token
+	 */
+	private function auftragUrl(array $parameter): string
+	{
+		return $this->backendUrl(array_merge(array('do' => 'files', 'table' => 'tl_metadaten'), $parameter));
 	}
 
 	/**

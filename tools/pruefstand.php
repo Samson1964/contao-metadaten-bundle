@@ -152,7 +152,9 @@ foreach (glob($bundle.'/src/Resources/contao/languages/de/*.php') as $datei)
 	pruefe(basename($datei), true, $fehler);
 }
 
-pruefe('MOD.metadaten beschriftet', isset($GLOBALS['TL_LANG']['MOD']['metadaten'][0]), $fehler);
+pruefe('globale Operation tl_files.metadaten beschriftet', isset($GLOBALS['TL_LANG']['tl_files']['metadaten'][0]), $fehler);
+pruefe('kein eigener Menüeintrag mehr (MOD.metadaten)', !isset($GLOBALS['TL_LANG']['MOD']['metadaten']), $fehler);
+pruefe('Regeln für Dateinamen beschriftet', array() === array_diff(Schachbulle\ContaoMetadatenBundle\Classes\Dateiname::REGELN, array_keys($GLOBALS['TL_LANG']['tl_metadaten']['dateinamenOptionen'] ?? array())), $fehler);
 pruefe('METADATEN.erledigt vorhanden', isset($GLOBALS['TL_LANG']['METADATEN']['erledigt']), $fehler);
 pruefe('tl_metadaten.vorschau (Operation) beschriftet', isset($GLOBALS['TL_LANG']['tl_metadaten']['vorschau'][0]), $fehler);
 
@@ -182,10 +184,10 @@ $GLOBALS['TL_CSS'] = array();
 
 require $bundle.'/src/Resources/contao/config/config.php';
 pruefe('config.php geladen', true, $fehler);
-pruefe('Backend-Modul metadaten mit Tabelle tl_metadaten', array('tl_metadaten') === ($GLOBALS['BE_MOD']['system']['metadaten']['tables'] ?? null), $fehler);
-pruefe('key=vorschau angemeldet', isset($GLOBALS['BE_MOD']['system']['metadaten']['vorschau'][1]), $fehler);
-pruefe('key=bildteile angemeldet', isset($GLOBALS['BE_MOD']['system']['metadaten']['bildteile'][1]), $fehler);
-pruefe('Modul steht direkt hinter der Dateiverwaltung', array('files', 'metadaten', 'log') === array_keys($GLOBALS['BE_MOD']['system']), $fehler);
+pruefe('tl_metadaten als zweite Tabelle der Dateiverwaltung', array('tl_files', 'tl_metadaten') === ($GLOBALS['BE_MOD']['system']['files']['tables'] ?? null), $fehler);
+pruefe('key=metadaten_vorschau an der Dateiverwaltung', isset($GLOBALS['BE_MOD']['system']['files']['metadaten_vorschau'][1]), $fehler);
+pruefe('key=metadaten_bildteile an der Dateiverwaltung', isset($GLOBALS['BE_MOD']['system']['files']['metadaten_bildteile'][1]), $fehler);
+pruefe('kein eigenes Modul mehr in der Gruppe System', array('files', 'log') === array_keys($GLOBALS['BE_MOD']['system']), $fehler);
 pruefe('Model in TL_MODELS eingetragen', isset($GLOBALS['TL_MODELS']['tl_metadaten']) && is_subclass_of($GLOBALS['TL_MODELS']['tl_metadaten'], 'Contao\Model'), $fehler);
 pruefe('Stylesheet außerhalb des Backends nicht geladen', array() === $GLOBALS['TL_CSS'], $fehler);
 pruefe('Helfer::requestToken() ohne Dienst liefert leeren Text', '' === Schachbulle\ContaoMetadatenBundle\Classes\Helfer::requestToken(), $fehler);
@@ -201,9 +203,31 @@ pruefe('DCA geladen', array() !== $dca, $fehler);
 pruefe('dataContainer ist DC_Table::class', 'Contao\DC_Table' === ($dca['config']['dataContainer'] ?? ''), $fehler);
 pruefe('Ordner ist ein fileTree nur für Ordner', 'fileTree' === ($dca['fields']['ordner']['inputType'] ?? '') && false === ($dca['fields']['ordner']['eval']['files'] ?? null), $fehler);
 pruefe('keine children-Operation', !isset($dca['list']['operations']['children']), $fehler);
-pruefe('Operation vorschau zeigt auf key=vorschau', 'key=vorschau' === ($dca['list']['operations']['vorschau']['href'] ?? ''), $fehler);
-pruefe('Operation bildteile zeigt auf key=bildteile', 'key=bildteile' === ($dca['list']['operations']['bildteile']['href'] ?? ''), $fehler);
+pruefe('Operation vorschau zeigt auf key=metadaten_vorschau', 'key=metadaten_vorschau' === ($dca['list']['operations']['vorschau']['href'] ?? ''), $fehler);
+pruefe('Operation bildteile zeigt auf key=metadaten_bildteile', 'key=metadaten_bildteile' === ($dca['list']['operations']['bildteile']['href'] ?? ''), $fehler);
 pruefe('jede Operation ist beschriftet', array() === array_diff(array_keys($dca['list']['operations']), array_keys($GLOBALS['TL_LANG']['tl_metadaten'])), $fehler);
+pruefe('Knopf zurück zur Dateiverwaltung', 'table=tl_files' === ($dca['list']['global_operations']['dateiverwaltung']['href'] ?? ''), $fehler);
+pruefe('Rechteprüfung beim Laden', array(array('tl_metadaten', 'pruefeRecht')) === ($dca['config']['onload_callback'] ?? null), $fehler);
+pruefe('Feld dateinamen mit allen Regeln', Schachbulle\ContaoMetadatenBundle\Classes\Dateiname::REGELN === ($dca['fields']['dateinamen']['options'] ?? null), $fehler);
+
+// Globale Operation in der Dateiverwaltung
+$GLOBALS['TL_DCA']['tl_files'] = array('config' => array(), 'list' => array('global_operations' => array('all' => array('href' => 'act=select'))));
+require $bundle.'/src/Resources/contao/dca/tl_files.php';
+$dateiDca = $GLOBALS['TL_DCA']['tl_files'];
+pruefe('tl_files: globale Operation metadaten führt zu table=tl_metadaten', 'table=tl_metadaten' === ($dateiDca['list']['global_operations']['metadaten']['href'] ?? ''), $fehler);
+pruefe('tl_files: bestehende globale Operationen bleiben', isset($dateiDca['list']['global_operations']['all']), $fehler);
+pruefe('tl_files: Symbol vorhanden', is_file($bundle.'/src/Resources/public/img/metadaten.svg'), $fehler);
+
+// Ohne Sicherheitsdienst gilt „kein Recht“: Die Operation muss verschwinden
+foreach ($dateiDca['config']['onload_callback'] ?? array() as $rueckruf)
+{
+	if ($rueckruf instanceof Closure)
+	{
+		$rueckruf(null);
+	}
+}
+
+pruefe('tl_files: ohne Recht „Dateien bearbeiten“ keine Operation', !isset($GLOBALS['TL_DCA']['tl_files']['list']['global_operations']['metadaten']), $fehler);
 
 $ohneSql = array();
 
@@ -280,7 +304,7 @@ pruefe('getFelder() liefert die fünf Metadaten-Felder', Schachbulle\ContaoMetad
 
 // 5. Modulklasse: Contao erzeugt sie mit System::importStatic() ohne Argumente
 echo "\nModulklasse\n";
-$modul = $GLOBALS['BE_MOD']['system']['metadaten']['vorschau'][0];
+$modul = $GLOBALS['BE_MOD']['system']['files']['metadaten_vorschau'][0];
 pruefe('Klasse '.$modul.' ladbar', class_exists($modul), $fehler);
 pruefe('vorschau() vorhanden', method_exists($modul, 'vorschau'), $fehler);
 pruefe('bildteile() vorhanden', method_exists($modul, 'bildteile'), $fehler);

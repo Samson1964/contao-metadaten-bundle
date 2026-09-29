@@ -15,8 +15,11 @@ use Contao\DC_Table;
 use Contao\FilesModel;
 use Contao\StringUtil;
 use Contao\System;
+use Contao\CoreBundle\Exception\AccessDeniedException;
 use Schachbulle\ContaoMetadatenBundle\Classes\Auftrag;
 use Schachbulle\ContaoMetadatenBundle\Classes\Bearbeitung;
+use Schachbulle\ContaoMetadatenBundle\Classes\Dateiname;
+use Schachbulle\ContaoMetadatenBundle\Classes\Helfer;
 
 /*
  * Tabelle tl_metadaten: gespeicherte Bearbeitungsaufträge.
@@ -36,6 +39,9 @@ $GLOBALS['TL_DCA']['tl_metadaten'] = array
 		// qualifizierte Klassenname ist in beiden Fassungen richtig.
 		'dataContainer'                 => DC_Table::class,
 		'enableVersioning'              => true,
+		// Die Aufträge ändern Dateien; wer in der Dateiverwaltung keine Dateien
+		// bearbeiten darf, soll auch hier nicht hinein
+		'onload_callback'               => array(array('tl_metadaten', 'pruefeRecht')),
 		'sql' => array
 		(
 			'keys' => array
@@ -64,6 +70,15 @@ $GLOBALS['TL_DCA']['tl_metadaten'] = array
 		),
 		'global_operations' => array
 		(
+			// Die Aufträge leben im Modul Dateiverwaltung (do=files&table=tl_metadaten);
+			// tl_files ist dort die erste Tabelle, table=tl_files führt also zurück
+			'dateiverwaltung' => array
+			(
+				'label'                 => &$GLOBALS['TL_LANG']['tl_metadaten']['dateiverwaltung'],
+				'href'                  => 'table=tl_files',
+				'class'                 => 'header_back',
+				'attributes'            => 'accesskey="b"'
+			),
 			'all' => array
 			(
 				'label'                 => &$GLOBALS['TL_LANG']['MSC']['all'],
@@ -93,18 +108,20 @@ $GLOBALS['TL_DCA']['tl_metadaten'] = array
 				'icon'                  => 'delete.svg',
 				'attributes'            => 'onclick="if(!confirm(\'' . ($GLOBALS['TL_LANG']['MSC']['deleteConfirm'] ?? null) . '\'))return false;Backend.getScrollOffset()"'
 			),
-			// Vorschau und Ausführung: key=vorschau ruft Modules\Metadaten::vorschau()
+			// Vorschau und Ausführung: ruft Modules\Metadaten::vorschau(). Die
+			// Schlüssel tragen das Präfix, weil sie im Modul Dateiverwaltung
+			// neben denen anderer Erweiterungen stehen
 			'vorschau' => array
 			(
 				'label'                 => &$GLOBALS['TL_LANG']['tl_metadaten']['vorschau'],
-				'href'                  => 'key=vorschau',
+				'href'                  => 'key=metadaten_vorschau',
 				'icon'                  => 'diff.svg',
 			),
-			// Bildteil-Editor: key=bildteile ruft Modules\Metadaten::bildteile()
+			// Bildteil-Editor: ruft Modules\Metadaten::bildteile()
 			'bildteile' => array
 			(
 				'label'                 => &$GLOBALS['TL_LANG']['tl_metadaten']['bildteile'],
-				'href'                  => 'key=bildteile',
+				'href'                  => 'key=metadaten_bildteile',
 				'icon'                  => 'sizes.svg',
 			),
 			'show' => array
@@ -120,7 +137,7 @@ $GLOBALS['TL_DCA']['tl_metadaten'] = array
 	'palettes' => array
 	(
 		'__selector__'                  => array('modus'),
-		'default'                       => '{titel_legend},titel;{auswahl_legend},ordner,unterordner,endungen;{modus_legend},modus;{bild_legend},wichtigerTeil',
+		'default'                       => '{titel_legend},titel;{auswahl_legend},ordner,unterordner,endungen;{modus_legend},modus;{bild_legend},wichtigerTeil;{dateinamen_legend},dateinamen',
 	),
 
 	// Subpalettes: Ein Select mit __selector__ schaltet über feldname_wert um.
@@ -295,6 +312,17 @@ $GLOBALS['TL_DCA']['tl_metadaten'] = array
 			'eval'                      => array('tl_class' => 'clr'),
 			'sql'                       => "char(1) NOT NULL default ''"
 		),
+		// Regeln für die Bereinigung der Dateinamen; leer lässt die Namen unverändert
+		'dateinamen' => array
+		(
+			'label'                     => &$GLOBALS['TL_LANG']['tl_metadaten']['dateinamen'],
+			'exclude'                   => true,
+			'inputType'                 => 'checkbox',
+			'options'                   => Dateiname::REGELN,
+			'reference'                 => &$GLOBALS['TL_LANG']['tl_metadaten']['dateinamenOptionen'],
+			'eval'                      => array('multiple' => true, 'tl_class' => 'clr'),
+			'sql'                       => "blob NULL"
+		),
 		'nurLeere' => array
 		(
 			'label'                     => &$GLOBALS['TL_LANG']['tl_metadaten']['nurLeere'],
@@ -324,6 +352,24 @@ class tl_metadaten extends Backend
 	public function __construct()
 	{
 		parent::__construct();
+	}
+
+	/**
+	 * Weist Benutzer ab, die in der Dateiverwaltung keine Dateien bearbeiten dürfen.
+	 *
+	 * Die Aufträge ändern Metadaten, wichtige Bildteile und Dateinamen. Das
+	 * entspricht dem Recht „Dateien bearbeiten, kopieren und verschieben“
+	 * (fop f2), das Contao auch für die Bearbeitungsmaske einer Datei verlangt.
+	 * Das Modulrecht „Dateiverwaltung“ allein genügt deshalb nicht.
+	 *
+	 * @throws AccessDeniedException wenn das Recht fehlt
+	 */
+	public function pruefeRecht(): void
+	{
+		if (!Helfer::darfDateienBearbeiten())
+		{
+			throw new AccessDeniedException('Dateien bearbeiten ist für dieses Benutzerkonto nicht erlaubt.');
+		}
 	}
 
 	/**

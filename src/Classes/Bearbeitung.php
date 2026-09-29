@@ -90,7 +90,7 @@ final class Bearbeitung
 		// Sprache nichts zu prüfen — wohl aber, ob überhaupt etwas zu tun ist
 		if (Auftrag::MODUS_KEINE === $auftrag->modus)
 		{
-			return $auftrag->wichtigerTeil ? array() : array('nichtsZuTun');
+			return $auftrag->wichtigerTeil || $auftrag->dateinamen ? array() : array('nichtsZuTun');
 		}
 
 		$fehler = array();

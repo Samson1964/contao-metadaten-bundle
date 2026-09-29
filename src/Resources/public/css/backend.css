@@ -282,3 +282,13 @@
 	border-color: var(--green, #2a7);
 	color: #fff;
 }
+
+/* Umbenennen: Konflikte in der Vorschau nicht durchstreichen, sondern warnen */
+.metadaten-tabelle tr.metadaten-konflikt td.metadaten-alt {
+	text-decoration: none;
+	color: inherit;
+}
+
+.metadaten-tabelle tr.metadaten-konflikt td.metadaten-neu {
+	color: var(--red, #c33);
+}

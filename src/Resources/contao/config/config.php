@@ -14,38 +14,27 @@ use Schachbulle\ContaoMetadatenBundle\Model\MetadatenModel;
 use Schachbulle\ContaoMetadatenBundle\Modules\Metadaten;
 
 /*
- * Backend-Modul „Metadaten“ in der Gruppe „System“, direkt hinter der
- * Dateiverwaltung.
+ * Die Aufträge hängen als zweite Tabelle im Modul Dateiverwaltung.
  *
- * Das Modul verwaltet die Aufträge in tl_metadaten mit Contaos DC_Table;
- * dadurch steht im Formular der echte Dateibaum zur Verfügung. Die Schlüssel
- * „vorschau“ und „bildteile“ werden von Contao aufgerufen, sobald in der
- * Adresszeile &key=vorschau bzw. &key=bildteile steht (Operationen in der
- * Auftragsliste) — in 4.13 und 5.x gleich. array_insert() aus dem Kern gibt es unter Contao 5 nicht mehr,
- * deshalb das Einfügen von Hand; das true in array_slice() erhält die
- * Modulnamen als Schlüssel.
+ * Erreichbar über die globale Operation „Metadaten“ der Dateiverwaltung
+ * (siehe dca/tl_files.php), Adresse do=files&table=tl_metadaten. Contao
+ * erlaubt jede Tabelle, die in 'tables' des Moduls steht; die Rechte folgen
+ * damit dem Modul Dateiverwaltung. Zusätzlich verlangt tl_metadaten das
+ * Recht „Dateien bearbeiten“ (siehe onload_callback dort).
+ *
+ * Die Schlüssel metadaten_vorschau und metadaten_bildteile ruft Contao auf,
+ * sobald &key=… in der Adresse steht (Operationen in der Auftragsliste), in
+ * 4.13 und 5.x gleich. Das Präfix vermeidet Zusammenstöße mit Schlüsseln
+ * anderer Erweiterungen im selben Modul.
+ *
+ * Bis Version 1.7.0 war „Metadaten“ ein eigenes Modul in der Gruppe System.
  */
-$system = $GLOBALS['BE_MOD']['system'] ?? array();
-$neu = array(
-	'metadaten' => array(
-		'tables'   => array('tl_metadaten'),
-		'vorschau'  => array(Metadaten::class, 'vorschau'),
-		'bildteile' => array(Metadaten::class, 'bildteile'),
-	),
-);
-$position = array_search('files', array_keys($system), true);
-
-if (false === $position)
+// Nur einhängen, wenn es die Dateiverwaltung gibt; sonst entstünde ein Modul ohne Kern
+if (isset($GLOBALS['BE_MOD']['system']['files']))
 {
-	$GLOBALS['BE_MOD']['system'] = $system + $neu;
-}
-else
-{
-	$GLOBALS['BE_MOD']['system'] = array_merge(
-		\array_slice($system, 0, $position + 1, true),
-		$neu,
-		\array_slice($system, $position + 1, null, true)
-	);
+	$GLOBALS['BE_MOD']['system']['files']['tables'][] = 'tl_metadaten';
+	$GLOBALS['BE_MOD']['system']['files']['metadaten_vorschau'] = array(Metadaten::class, 'vorschau');
+	$GLOBALS['BE_MOD']['system']['files']['metadaten_bildteile'] = array(Metadaten::class, 'bildteile');
 }
 
 /*

@@ -56,6 +56,16 @@ final class Auftrag
 	public $wichtigerTeil = false;
 
 	/**
+	 * Regeln für die Bereinigung der Dateinamen, Teilmenge von Dateiname::REGELN.
+	 *
+	 * Leer heißt: Dateinamen bleiben unverändert. Wirkt unabhängig von der
+	 * Betriebsart.
+	 *
+	 * @var string[]
+	 */
+	public $dateinamen = array();
+
+	/**
 	 * Zu bearbeitende Felder, Teilmenge von Bearbeitung::FELDER
 	 *
 	 * @var string[]
@@ -139,15 +149,10 @@ final class Auftrag
 		$auftrag->nurLeere = !empty($row['nurLeere']);
 		$auftrag->wichtigerTeil = !empty($row['wichtigerTeil']);
 
-		$felder = $row['felder'] ?? array();
+		$auftrag->felder = self::liste($row['felder'] ?? array());
 
-		if (\is_string($felder))
-		{
-			$entpackt = '' === $felder ? array() : @unserialize($felder, array('allowed_classes' => false));
-			$felder = \is_array($entpackt) ? $entpackt : array();
-		}
-
-		$auftrag->felder = array_values(array_map('strval', array_filter((array) $felder, 'is_scalar')));
+		// Nur bekannte Regeln, in der Reihenfolge von Dateiname::REGELN
+		$auftrag->dateinamen = array_values(array_intersect(Dateiname::REGELN, self::liste($row['dateinamen'] ?? array())));
 
 		foreach (Bearbeitung::FELDER as $feld)
 		{
@@ -155,5 +160,27 @@ final class Auftrag
 		}
 
 		return $auftrag;
+	}
+
+	/**
+	 * Liest ein Mehrfachfeld (Checkboxen) aus einem Datensatz.
+	 *
+	 * Contao speichert solche Felder serialisiert; beim Aufruf aus Tests kann
+	 * es auch schon ein Feld sein. Kaputte Werte werden zu einer leeren Liste,
+	 * verschachtelte Einträge fallen weg.
+	 *
+	 * @param mixed $wert Serialisierter Text oder Feld
+	 *
+	 * @return string[] Die Einträge als Texte
+	 */
+	private static function liste($wert): array
+	{
+		if (\is_string($wert))
+		{
+			$entpackt = '' === $wert ? array() : @unserialize($wert, array('allowed_classes' => false));
+			$wert = \is_array($entpackt) ? $entpackt : array();
+		}
+
+		return array_values(array_map('strval', array_filter((array) $wert, 'is_scalar')));
 	}
 }

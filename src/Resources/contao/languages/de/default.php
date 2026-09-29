@@ -67,6 +67,19 @@ $GLOBALS['TL_LANG']['METADATEN']['bildteileZurVorschau'] = 'Zur Vorschau des Auf
 $GLOBALS['TL_LANG']['METADATEN']['bildteileNichts'] = 'Es war kein Bild angehakt, deshalb wurde nichts gespeichert.';
 $GLOBALS['TL_LANG']['METADATEN']['fehler']['bildteilUngueltig'] = 'Bei %d angehakten Bildern waren die Werte des Rechtecks unbrauchbar; sie wurden nicht gespeichert.';
 
+/*
+ * Dateinamen bereinigen
+ */
+$GLOBALS['TL_LANG']['METADATEN']['legendDateinamen'] = 'Dateinamen';
+$GLOBALS['TL_LANG']['METADATEN']['dateinamenKeine'] = 'Alle Dateinamen der Auswahl entsprechen bereits den Regeln.';
+$GLOBALS['TL_LANG']['METADATEN']['dateinamenAnzahl'] = '%d Dateien werden umbenannt.';
+$GLOBALS['TL_LANG']['METADATEN']['dateinamenKonflikte'] = '%d Dateien werden übersprungen, weil ihr neuer Name im selben Ordner schon vergeben ist oder zweimal vorkäme.';
+$GLOBALS['TL_LANG']['METADATEN']['dateinamenHinweis'] = 'Inhaltselemente, Galerien und Insert-Tags verweisen über die UUID auf Dateien und bleiben gültig. Fest eingetragene Pfade, etwa in Texten des Editors oder in Verweisen von außen, zeigen nach dem Umbenennen ins Leere. Das Umbenennen legt keine Version an.';
+$GLOBALS['TL_LANG']['METADATEN']['dateinamenBelegt'] = '(Name vergeben, wird übersprungen)';
+$GLOBALS['TL_LANG']['METADATEN']['spalteOrdner'] = 'Ordner';
+$GLOBALS['TL_LANG']['METADATEN']['umbenannt'] = '%d Dateien wurden umbenannt.';
+$GLOBALS['TL_LANG']['METADATEN']['nichtUmbenannt'] = '%d Dateien wurden nicht umbenannt, weil der neue Name vergeben war oder das Umbenennen scheiterte.';
+
 $GLOBALS['TL_LANG']['METADATEN']['ausfuehren'] = 'Auftrag jetzt ausführen';
 $GLOBALS['TL_LANG']['METADATEN']['keineTreffer'] = 'In den %d ausgewählten Dateien ändert sich nichts.';
 $GLOBALS['TL_LANG']['METADATEN']['treffer'] = '%d von %d ausgewählten Dateien werden geändert. Bitte prüfen Sie die Liste, bevor Sie die Änderung ausführen.';
@@ -82,7 +95,7 @@ $GLOBALS['TL_LANG']['METADATEN']['spalteNeu'] = 'neu';
 
 $GLOBALS['TL_LANG']['METADATEN']['fehler']['auftragUnbekannt'] = 'Der Auftrag wurde nicht gefunden.';
 $GLOBALS['TL_LANG']['METADATEN']['fehler']['unbekannterModus'] = 'Die Betriebsart ist unbekannt.';
-$GLOBALS['TL_LANG']['METADATEN']['fehler']['nichtsZuTun'] = 'Der Auftrag ändert weder Metadaten noch markiert er den wichtigen Bildteil. Bitte wählen Sie eine Betriebsart oder haken Sie „Wichtigen Bildteil automatisch markieren“ an.';
+$GLOBALS['TL_LANG']['METADATEN']['fehler']['nichtsZuTun'] = 'Der Auftrag ändert weder Metadaten noch Bildteile noch Dateinamen. Bitte wählen Sie eine Betriebsart, haken Sie „Wichtigen Bildteil automatisch markieren“ an oder wählen Sie Regeln für die Dateinamen.';
 $GLOBALS['TL_LANG']['METADATEN']['fehler']['keinGd'] = 'Die PHP-Erweiterung GD fehlt auf diesem Server; der wichtige Bildteil lässt sich nicht automatisch bestimmen.';
 $GLOBALS['TL_LANG']['METADATEN']['fehler']['keineFelder'] = 'Bitte wählen Sie im Auftrag mindestens ein Feld aus.';
 $GLOBALS['TL_LANG']['METADATEN']['fehler']['unbekanntesFeld'] = 'Eines der gewählten Felder ist unbekannt.';

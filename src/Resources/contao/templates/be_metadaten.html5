@@ -139,6 +139,50 @@ $pz = static function ($bruchteil): string { return number_format((float) $bruch
 			<?php endif; ?>
 		</fieldset>
 	<?php endif; ?>
+
+	<?php if (null !== $this->vorschau && $this->vorschau['dateinamen']): ?>
+		<fieldset class="tl_box metadaten-dateinamen">
+			<legend><?= $sc($t['legendDateinamen'] ?? 'Dateinamen') ?></legend>
+
+			<div class="widget clr">
+				<?php if (!$this->vorschau['umbenennungen']): ?>
+					<p class="tl_info"><?= $sc($t['dateinamenKeine'] ?? 'Alle Dateinamen entsprechen bereits den Regeln.') ?></p>
+				<?php else: ?>
+					<p class="tl_info"><?= $sc(sprintf($t['dateinamenAnzahl'] ?? '%d Dateien werden umbenannt.', $this->vorschau['umbenennbar'])) ?></p>
+					<?php if ($this->vorschau['konflikte']): ?>
+						<p class="tl_error"><?= $sc(sprintf($t['dateinamenKonflikte'] ?? '%d Konflikte.', $this->vorschau['konflikte'])) ?></p>
+					<?php endif; ?>
+					<p class="tl_help"><?= $sc($t['dateinamenHinweis'] ?? '') ?></p>
+					<?php if ($this->vorschau['umbenennungenGekuerzt']): ?>
+						<p class="tl_help"><?= $sc(sprintf($t['gekuerzt'] ?? 'Es werden nur die ersten %d Dateien angezeigt.', \count($this->vorschau['umbenennungen']))) ?></p>
+					<?php endif; ?>
+				<?php endif; ?>
+			</div>
+
+			<?php if ($this->vorschau['umbenennungen']): ?>
+				<div class="widget clr metadaten-tabelle">
+					<table class="tl_listing">
+						<thead>
+							<tr>
+								<th class="tl_folder_tlist"><?= $sc($t['spalteOrdner'] ?? 'Ordner') ?></th>
+								<th class="tl_folder_tlist"><?= $sc($t['spalteAlt'] ?? 'bisher') ?></th>
+								<th class="tl_folder_tlist"><?= $sc($t['spalteNeu'] ?? 'neu') ?></th>
+							</tr>
+						</thead>
+						<tbody>
+							<?php foreach ($this->vorschau['umbenennungen'] as $u): ?>
+								<tr<?= $u['konflikt'] ? ' class="metadaten-konflikt"' : '' ?>>
+									<td class="tl_file_list"><?= $sc(\dirname($u['alt'])) ?></td>
+									<td class="tl_file_list metadaten-alt"><?= $sc(basename($u['alt'])) ?></td>
+									<td class="tl_file_list metadaten-neu"><?= $sc(basename($u['neu'])) ?><?php if ($u['konflikt']): ?> <strong><?= $sc($t['dateinamenBelegt'] ?? '(Name vergeben, wird übersprungen)') ?></strong><?php endif; ?></td>
+								</tr>
+							<?php endforeach; ?>
+						</tbody>
+					</table>
+				</div>
+			<?php endif; ?>
+		</fieldset>
+	<?php endif; ?>
 </div>
 
 <?php if ($this->ausfuehrbar): ?>

@@ -29,13 +29,23 @@ Spalte `meta` der Tabelle `tl_files`.
 
 ## Backend
 
-Das Modul heißt **Metadaten** und steht in der Gruppe **System** direkt hinter
-der Dateiverwaltung. Es verwaltet **Aufträge**: Ein Auftrag beschreibt, welche
-Dateien wie bearbeitet werden sollen, und lässt sich beliebig oft mit
-Vorschau ausführen — etwa nach jedem neuen Schwung Turnierfotos.
+Das Werkzeug steckt in der **Dateiverwaltung**: Oben über der Dateiliste
+führt die Schaltfläche **„Metadaten“** zur Liste der **Aufträge**, „Zurück zur
+Dateiverwaltung“ wieder hinaus. Ein Auftrag beschreibt, welche Dateien wie
+bearbeitet werden sollen, und lässt sich beliebig oft mit Vorschau
+ausführen, etwa nach jedem neuen Schwung Turnierfotos.
 
-Nicht-Administratoren brauchen in ihrer Benutzergruppe das Modul unter
-„Erlaubte Module“ und die Felder von `tl_metadaten` unter „Erlaubte Felder“.
+Bis Version 1.7.0 war „Metadaten“ ein eigener Menüpunkt in der Gruppe System.
+Lesezeichen auf `do=metadaten` funktionieren seit 1.8.0 nicht mehr; die
+Aufträge liegen jetzt unter `do=files&table=tl_metadaten`.
+
+Nicht-Administratoren brauchen in ihrer Benutzergruppe:
+
+* das Modul **Dateiverwaltung** unter „Erlaubte Module“,
+* das Dateirecht **„Dateien bearbeiten, kopieren und verschieben“**, denn die
+  Aufträge ändern Metadaten und Dateinamen. Ohne dieses Recht erscheint die
+  Schaltfläche nicht, und die Aufträge sind gesperrt,
+* die Felder von `tl_metadaten` unter „Erlaubte Felder“.
 
 ### Auftrag anlegen
 
@@ -49,6 +59,7 @@ Nicht-Administratoren brauchen in ihrer Benutzergruppe das Modul unter
 | Sprache | Eine aktivierte Backend-Sprache oder „alle vorhandenen Sprachen“ |
 | Felder | Nur die angehakten Felder werden bearbeitet |
 | Wichtigen Bildteil automatisch markieren | Schätzt bei Bildern ohne wichtigen Teil diesen aus dem Bildinhalt |
+| Dateinamen bereinigen | Regeln, nach denen die Dateien umbenannt werden; leer lässt die Namen unverändert |
 
 Der Ordner wird über Contaos eigenen Dateibaum gewählt, der jeden Zweig erst
 beim Aufklappen lädt — auch bei sehr großen Dateiverwaltungen ohne Wartezeit.
@@ -71,6 +82,42 @@ einer Sprache. Mit „Nur leere Felder füllen“ (Vorgabe) bleiben vorhandene
 Werte stehen; abgeschaltet werden die gewählten Felder in allen ausgewählten
 Dateien überschrieben — auch mit einem leeren Wert, was einem Löschen
 gleichkommt.
+
+### Dateinamen bereinigen
+
+Unabhängig von der Betriebsart kann ein Auftrag die Dateien seiner Auswahl
+umbenennen. Zur Wahl stehen vier Regeln, die immer in dieser Reihenfolge
+wirken:
+
+| Regel | Beispiel |
+| --- | --- |
+| Umlaute ersetzen | `Größe Übersicht.jpg` wird zu `Groesse Uebersicht.jpg` |
+| Sonderzeichen ersetzen | `Café & Co!.jpg` wird zu `Cafe - Co.jpg`: Akzente fallen weg, alles außer Buchstaben, Ziffern, Punkt, Binde- und Unterstrich wird zum Bindestrich |
+| Leerzeichen ersetzen | `Foto vom Brett.jpg` wird zu `Foto-vom-Brett.jpg` |
+| Kleinschreibung | `DSC_0042.JPG` wird zu `dsc_0042.jpg`, auch die Endung |
+
+Alle vier zusammen machen aus `Siegerehrung Jörg Müller (2).JPG` den Namen
+`siegerehrung-joerg-mueller-2.jpg`. Mehrfache Bindestriche werden
+zusammengefasst, Binde- und Unterstriche am Rand entfernt.
+
+Die Vorschau zeigt jeden alten und neuen Namen. Ist ein neuer Name im selben
+Ordner schon vergeben oder bekämen zwei Dateien denselben Namen, wird die
+betroffene Datei übersprungen und rot markiert; **keine Datei überschreibt
+eine andere**. Groß- und Kleinschreibung zählt dabei nicht, weil Windows- und
+macOS-Server `Foto.jpg` und `foto.jpg` als dieselbe Datei sehen.
+
+Worauf zu achten ist:
+
+* Inhaltselemente, Galerien, Downloads und Insert-Tags verweisen über die
+  UUID auf Dateien und bleiben gültig, denn der Eintrag in der
+  Dateiverwaltung wird fortgeschrieben, nicht neu angelegt.
+* **Fest eingetragene Pfade** zeigen danach ins Leere, etwa ein von Hand
+  eingefügtes Bild im Texteditor, ein Link in einem Newsletter oder ein
+  Verweis von einer fremden Seite.
+* Das Umbenennen legt keine Version an; zurück geht es nur durch erneutes
+  Umbenennen.
+* Ordner, Dateien ohne Endung und versteckte Dateien wie `.htaccess` werden
+  nicht umbenannt.
 
 ### Wichtige Bildteile von Hand markieren
 
@@ -224,8 +271,9 @@ alte Stand deshalb über die Versionsauswahl der Datei wiederherstellen.
 
 * Es legt keine Metadaten in Sprachen an, die nicht ausdrücklich gewählt
   wurden, und rührt beim Ersetzen keine leeren Felder an.
-* Es ändert keine Dateien auf der Festplatte und synchronisiert nichts —
-  die Metadaten leben allein in der Datenbank.
+* Es ändert den Inhalt keiner Datei. Metadaten und wichtige Bildteile leben
+  allein in der Datenbank; auf der Festplatte ändert sich nur der Name, und
+  nur wenn „Dateinamen bereinigen“ gewählt ist.
 * Es kennt genau die fünf Felder des Contao-MetaWizards. Felder, die andere
   Erweiterungen ergänzen, bleiben unverändert erhalten.
 
