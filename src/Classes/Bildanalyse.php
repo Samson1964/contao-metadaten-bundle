@@ -100,6 +100,30 @@ final class Bildanalyse
 	private const UNTEN = 0.96;
 
 	/**
+	 * Merkmale für „zwei Spieler“: Das Foto gilt als breit, wenn eines davon
+	 * erreicht ist.
+	 *
+	 * - BEIDSEITIG: Anteil der Schärfemasse, der mindestens sowohl links
+	 *   (erste 40 Prozent der Breite) als auch rechts (letzte 40 Prozent) liegt
+	 * - STREUUNG: Standardabweichung der Schärfe quer über das Bild
+	 * - SPANNE: Abstand zwischen dem 10- und dem 90-Prozent-Punkt der Schärfemasse
+	 *
+	 * Gemessen an 206 von Hand markierten Fotos: 44 falsch eingeteilt statt 55,
+	 * wenn immer „ein Spieler“ angenommen würde. Die mittlere Überdeckung
+	 * ändert sich dadurch kaum; nebeneinandersitzende Spieler, von denen nur
+	 * einer scharf ist, erkennt die Schärfe nicht. Deshalb lässt sich die
+	 * Einteilung im Editor mit einem Klick umstellen.
+	 */
+	private const BEIDSEITIG = 0.2;
+	private const STREUUNG = 0.25;
+	private const SPANNE = 0.75;
+
+	/**
+	 * Festes Rechteck für „zwei Spieler“ als Bruchteile: x, y, Breite, Höhe
+	 */
+	private const BREIT = array(0.05, 0.02, 0.93, 0.88);
+
+	/**
 	 * Stellt fest, ob die nötigen GD-Funktionen vorhanden sind.
 	 *
 	 * @return bool true, wenn Bilder geladen und analysiert werden können
@@ -126,6 +150,22 @@ final class Bildanalyse
 	 */
 	public static function ausDatei(string $pfad): ?array
 	{
+		$vorschlaege = self::vorschlaegeAusDatei($pfad);
+
+		return null === $vorschlaege ? null : $vorschlaege['gewaehlt'];
+	}
+
+	/**
+	 * Liefert für eine Bilddatei beide Vorschläge, „ein Spieler“ und „zwei Spieler“.
+	 *
+	 * @param string $pfad Absoluter Pfad einer Bilddatei in einem Format, das GD lesen kann
+	 *
+	 * @return array{schmal: array, breit: array, zweiSpieler: bool, gewaehlt: array}|null
+	 *         Siehe vorschlaege(); null, wenn die Datei nicht lesbar ist oder
+	 *         das Bild keine Struktur hat
+	 */
+	public static function vorschlaegeAusDatei(string $pfad): ?array
+	{
 		if (!self::verfuegbar() || !is_file($pfad) || !is_readable($pfad))
 		{
 			return null;
@@ -145,7 +185,7 @@ final class Bildanalyse
 			return null;
 		}
 
-		$ergebnis = self::wichtigerTeil($bild);
+		$ergebnis = self::vorschlaege($bild);
 		imagedestroy($bild);
 
 		return $ergebnis;
@@ -154,6 +194,9 @@ final class Bildanalyse
 	/**
 	 * Schätzt den wichtigen Teil eines bereits geladenen GD-Bildes.
 	 *
+	 * Liefert den Vorschlag, den die Einteilung „ein oder zwei Spieler“
+	 * gewählt hat.
+	 *
 	 * @param \GdImage|resource $bild Das Bild; es wird nicht verändert
 	 *
 	 * @return array{x: float, y: float, width: float, height: float}|null
@@ -161,6 +204,27 @@ final class Bildanalyse
 	 *         klein ist oder keine Struktur hat (etwa eine einfarbige Fläche)
 	 */
 	public static function wichtigerTeil($bild): ?array
+	{
+		$vorschlaege = self::vorschlaege($bild);
+
+		return null === $vorschlaege ? null : $vorschlaege['gewaehlt'];
+	}
+
+	/**
+	 * Berechnet beide Vorschläge und entscheidet, welcher passt.
+	 *
+	 * „schmal“ ist das Rechteck um den scharf abgebildeten Bereich, „breit“
+	 * das feste Rechteck für zwei nebeneinander sitzende Spieler. Beide
+	 * werden immer geliefert, damit der Editor ohne erneute Analyse
+	 * umschalten kann.
+	 *
+	 * @param \GdImage|resource $bild Das Bild; es wird nicht verändert
+	 *
+	 * @return array{schmal: array, breit: array, zweiSpieler: bool, gewaehlt: array}|null
+	 *         Rechtecke jeweils als array{x, y, width, height} in Bruchteilen;
+	 *         null, wenn das Bild zu klein ist oder keine Struktur hat
+	 */
+	public static function vorschlaege($bild): ?array
 	{
 		$breite = imagesx($bild);
 		$hoehe = imagesy($bild);
@@ -180,12 +244,99 @@ final class Bildanalyse
 
 		list($links, $rechts) = self::quergrenzen($spalten);
 
-		return array(
+		$schmal = array(
 			'x'      => round($links, 4),
 			'y'      => self::OBEN,
 			'width'  => round($rechts - $links, 4),
 			'height' => round(self::UNTEN - self::OBEN, 4),
 		);
+
+		$breitTeil = array(
+			'x'      => self::BREIT[0],
+			'y'      => self::BREIT[1],
+			'width'  => self::BREIT[2],
+			'height' => self::BREIT[3],
+		);
+
+		$zwei = self::zweiSpieler($spalten);
+
+		return array(
+			'schmal'      => $schmal,
+			'breit'       => $breitTeil,
+			'zweiSpieler' => $zwei,
+			'gewaehlt'    => $zwei ? $breitTeil : $schmal,
+		);
+	}
+
+	/**
+	 * Entscheidet anhand der Schärfeverteilung quer über das Bild, ob zwei Spieler zu sehen sind.
+	 *
+	 * @param float[] $spalten Schärfemasse je Spalte aus spaltenmasse()
+	 *
+	 * @return bool true, wenn eines der Merkmale BEIDSEITIG, STREUUNG oder SPANNE erreicht ist
+	 */
+	private static function zweiSpieler(array $spalten): bool
+	{
+		$summe = array_sum($spalten);
+		$links = 0.0;
+		$rechts = 0.0;
+		$schwerpunkt = 0.0;
+
+		foreach ($spalten as $i => $wert)
+		{
+			$mitte = ($i + 0.5) / self::SPALTEN;
+			$schwerpunkt += $wert * $mitte;
+
+			if ($mitte < 0.4)
+			{
+				$links += $wert;
+			}
+			elseif ($mitte >= 0.6)
+			{
+				$rechts += $wert;
+			}
+		}
+
+		$schwerpunkt /= $summe;
+		$varianz = 0.0;
+
+		foreach ($spalten as $i => $wert)
+		{
+			$varianz += $wert * ((($i + 0.5) / self::SPALTEN) - $schwerpunkt) ** 2;
+		}
+
+		$streuung = sqrt($varianz / $summe);
+		$spanne = self::punkt($spalten, 0.9) - self::punkt($spalten, 0.1);
+
+		return min($links, $rechts) / $summe >= self::BEIDSEITIG
+			|| $streuung >= self::STREUUNG
+			|| $spanne >= self::SPANNE;
+	}
+
+	/**
+	 * Liefert die Stelle quer über das Bild, bis zu der ein Anteil der Schärfemasse reicht.
+	 *
+	 * @param float[] $spalten Schärfemasse je Spalte
+	 * @param float   $anteil  Anteil zwischen 0 und 1
+	 *
+	 * @return float Mitte der Spalte, in der der Anteil erreicht wird, als Bruchteil der Breite
+	 */
+	private static function punkt(array $spalten, float $anteil): float
+	{
+		$summe = array_sum($spalten);
+		$lauf = 0.0;
+
+		foreach ($spalten as $i => $wert)
+		{
+			$lauf += $wert;
+
+			if ($lauf >= $anteil * $summe)
+			{
+				return ($i + 0.5) / self::SPALTEN;
+			}
+		}
+
+		return 1.0;
 	}
 
 	/**

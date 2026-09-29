@@ -133,9 +133,12 @@ final class Bildteil
 	 * @param string $pfad  Pfad der Datei relativ zum Projektverzeichnis, wie in tl_files.path
 	 * @param int    $kante Kantenlänge des Vorschaubildes in Pixeln
 	 *
-	 * @return array{url: string, breite: int, hoehe: int, teil: array{x: float, y: float, width: float, height: float}, geschaetzt: bool}|null
-	 *         Adresse und Maße des Vorschaubildes, der Vorschlag in Bruchteilen
-	 *         und ob er aus der Analyse stammt; null, wenn sich kein
+	 * @return array{url: string, breite: int, hoehe: int, teil: array, schmal: array, breit: array, zweiSpieler: bool, geschaetzt: bool}|null
+	 *         Adresse und Maße des Vorschaubildes; der gewählte Vorschlag
+	 *         („teil“) und beide Varianten „ein Spieler“ („schmal“) und „zwei
+	 *         Spieler“ („breit“), jeweils als array{x, y, width, height} in
+	 *         Bruchteilen; ob die Analyse zwei Spieler annimmt und ob der
+	 *         Vorschlag überhaupt aus der Analyse stammt. null, wenn sich kein
 	 *         Vorschaubild erzeugen lässt
 	 */
 	public static function vorschlag(string $pfad, int $kante): ?array
@@ -147,14 +150,18 @@ final class Bildteil
 			return null;
 		}
 
-		$teil = Bildanalyse::verfuegbar() ? Bildanalyse::ausDatei($bild['pfad']) : null;
+		$analyse = Bildanalyse::verfuegbar() ? Bildanalyse::vorschlaegeAusDatei($bild['pfad']) : null;
+		$mitte = array('x' => 0.25, 'y' => 0.25, 'width' => 0.5, 'height' => 0.5);
 
 		return array(
-			'url'        => $bild['url'],
-			'breite'     => $bild['breite'],
-			'hoehe'      => $bild['hoehe'],
-			'teil'       => $teil ?? array('x' => 0.25, 'y' => 0.25, 'width' => 0.5, 'height' => 0.5),
-			'geschaetzt' => null !== $teil,
+			'url'         => $bild['url'],
+			'breite'      => $bild['breite'],
+			'hoehe'       => $bild['hoehe'],
+			'teil'        => $analyse['gewaehlt'] ?? $mitte,
+			'schmal'      => $analyse['schmal'] ?? $mitte,
+			'breit'       => $analyse['breit'] ?? array('x' => 0.05, 'y' => 0.02, 'width' => 0.93, 'height' => 0.88),
+			'zweiSpieler' => (bool) ($analyse['zweiSpieler'] ?? false),
+			'geschaetzt'  => null !== $analyse,
 		);
 	}
 

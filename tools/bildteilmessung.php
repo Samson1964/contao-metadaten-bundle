@@ -56,6 +56,8 @@ function ueberdeckung(array $a, array $b): float
 
 $werte = array();
 $ganz = array();
+$einteilung = array('richtig' => 0, 'falschBreit' => 0, 'falschSchmal' => 0);
+$umgeschaltet = array();
 $zeilen = array("datei;markierung;schaetzung;ueberdeckung");
 $fehlend = array();
 $start = microtime(true);
@@ -78,9 +80,18 @@ foreach (file($csv, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) as $zeile)
 	}
 
 	$markierung = array((float) $t[1], (float) $t[2], (float) $t[3], (float) $t[4]);
-	$teil = Bildanalyse::ausDatei($pfad);
+	$analyse = Bildanalyse::vorschlaegeAusDatei($pfad);
+	$teil = $analyse['gewaehlt'] ?? null;
 	$schaetzung = null === $teil ? array(0.25, 0.25, 0.5, 0.5) : array($teil['x'], $teil['y'], $teil['width'], $teil['height']);
 	$wert = ueberdeckung($schaetzung, $markierung);
+
+	// Einteilung „ein oder zwei Spieler“: Als breit gilt eine Markierung ab 80 Prozent der Bildbreite
+	if (null !== $analyse)
+	{
+		$breitMarkiert = $markierung[2] >= 0.8;
+		$einteilung[$breitMarkiert === $analyse['zweiSpieler'] ? 'richtig' : ($analyse['zweiSpieler'] ? 'falschBreit' : 'falschSchmal')]++;
+		$umgeschaltet[] = ueberdeckung(array_values($breitMarkiert ? $analyse['breit'] : $analyse['schmal']), $markierung);
+	}
 
 	$werte[] = $wert;
 	$ganz[] = ueberdeckung(array(0, 0, 1, 1), $markierung);
@@ -102,6 +113,13 @@ $ab = static fn (float $s): float => 100 * \count(array_filter($werte, static fn
 printf("%d Fotos in %.1f s ausgewertet%s\n\n", $n, microtime(true) - $start, $fehlend ? ', '.\count($fehlend).' fehlen im Ordner' : '');
 printf("Schätzung:       Überdeckung Mittel %.2f, Median %.2f, ab 0,7: %.0f %%, ab 0,8: %.0f %%\n", $mittel, $median, $ab(0.7), $ab(0.8));
 printf("Ganzes Bild:     Überdeckung Mittel %.2f\n", array_sum($ganz) / \count($ganz));
+printf("\nEinteilung ein oder zwei Spieler (breit markiert ab 80 %% der Bildbreite):\n");
+printf("  richtig %d, fälschlich zwei Spieler %d, fälschlich ein Spieler %d\n", $einteilung['richtig'], $einteilung['falschBreit'], $einteilung['falschSchmal']);
+
+if ($umgeschaltet)
+{
+	printf("  nach Umschalten der falsch eingeteilten im Editor: Überdeckung Mittel %.2f\n", array_sum($umgeschaltet) / \count($umgeschaltet));
+}
 
 if ('' !== $bericht)
 {

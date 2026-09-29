@@ -1,5 +1,23 @@
 # Metadaten Changelog
 
+## Version 1.6.0 (2026-09-29)
+
+Keine Datenbankaktualisierung nötig.
+
+* Add: Unterscheidung „ein oder zwei Spieler“. Die Bildanalyse liefert zwei Vorschläge, den Ausschnitt um den scharfen Spieler und einen breiten Ausschnitt (5 bis 98 Prozent der Breite, 2 bis 90 Prozent der Höhe), und wählt anhand der Schärfeverteilung quer über das Bild einen davon vor
+* Add: Im Bildteil-Editor schalten die Knöpfe „1 Spieler“ und „2 Spieler“ jede Karte mit einem Klick um; die Vorwahl der Analyse ist hervorgehoben, das Umschalten setzt das Häkchen „übernehmen“
+* Add: `tools/bildteilmessung.php` meldet zusätzlich, wie viele Fotos richtig eingeteilt werden und welche Überdeckung nach dem Umschalten der falsch eingeteilten erreicht wird
+
+Gemessen an den 206 Markierungen der DSSAM-Galerie:
+
+| | Ohne Unterscheidung (1.5.0) | Mit Unterscheidung (1.6.0) |
+| --- | --- | --- |
+| Falsch eingeteilte Fotos, die im Editor nachgearbeitet werden müssen | 55 | 42 |
+| Mittlere Überdeckung ohne Nacharbeit | 0,74 | 0,74 |
+| Mittlere Überdeckung, wenn die falsch eingeteilten umgeschaltet werden | 0,74 | 0,79 |
+
+Die automatische Einteilung allein verbessert die Überdeckung kaum: Sitzen zwei Spieler nebeneinander und ist nur einer scharf, erkennt die Schärfekarte den zweiten nicht. Der Gewinn liegt im Umschalten mit einem Klick statt Aufziehen von Hand.
+
 ## Version 1.5.0 (2026-09-29)
 
 Keine Datenbankaktualisierung nötig.

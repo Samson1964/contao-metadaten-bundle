@@ -248,3 +248,37 @@
 .metadaten-fund-treffer {
 	color: var(--green, #2a7);
 }
+
+/* Umschalter „1 Spieler“ / „2 Spieler“: zwei aneinanderliegende Knöpfe,
+   der gewählte ist gefüllt */
+.metadaten-spieler {
+	display: inline-flex;
+	align-self: flex-start;
+}
+
+.metadaten-spielerknopf {
+	padding: 2px 10px;
+	border: 1px solid var(--border, #ccc);
+	background: transparent;
+	color: inherit;
+	font-size: .75rem;
+	cursor: pointer;
+}
+
+.metadaten-spielerknopf + .metadaten-spielerknopf {
+	border-left: 0;
+}
+
+.metadaten-spielerknopf:first-child {
+	border-radius: 2px 0 0 2px;
+}
+
+.metadaten-spielerknopf:last-child {
+	border-radius: 0 2px 2px 0;
+}
+
+.metadaten-spielerknopf[aria-pressed="true"] {
+	background: var(--green, #2a7);
+	border-color: var(--green, #2a7);
+	color: #fff;
+}

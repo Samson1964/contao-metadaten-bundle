@@ -318,7 +318,7 @@ $skript = (string) file_get_contents($bundle.'/src/Resources/public/js/bildteile
 $editor = (string) file_get_contents($bundle.'/src/Resources/contao/templates/be_metadaten_bildteile.html5');
 pruefe('bildteile.js vorhanden', '' !== $skript, $fehler);
 
-foreach (array('data-metadaten-karte', 'data-metadaten-editor', 'data-metadaten-teil', 'data-ecke', 'data-feld', 'data-metadaten-haken', 'data-metadaten-zurueck', 'data-metadaten-alle', 'data-vorschlag', 'data-min') as $attribut)
+foreach (array('data-metadaten-karte', 'data-metadaten-editor', 'data-metadaten-teil', 'data-ecke', 'data-feld', 'data-metadaten-haken', 'data-metadaten-zurueck', 'data-metadaten-alle', 'data-vorschlag', 'data-min', 'data-metadaten-spieler', 'data-schmal', 'data-breit', 'data-zwei') as $attribut)
 {
 	pruefe($attribut.' in Skript und Template', false !== strpos($skript, $attribut) && false !== strpos($editor, $attribut), $fehler);
 }

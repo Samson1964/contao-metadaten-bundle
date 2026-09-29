@@ -25,6 +25,10 @@
  *   [data-metadaten-haken]    Häkchen „übernehmen“
  *   [data-metadaten-zurueck]  Knopf „Vorschlag wiederherstellen“
  *   [data-metadaten-alle]     Knopf, Wert 1 = alle anhaken, 0 = keines
+ *   [data-metadaten-spieler]  Knopf, Wert 1 = Ausschnitt „ein Spieler“
+ *                             (data-schmal am Editor), 2 = „zwei Spieler“
+ *                             (data-breit); data-zwei am Editor sagt, welchen
+ *                             die Bildanalyse vorgewählt hat
  *
  * Alle Werte sind Bruchteile der Bildgröße von 0 bis 1.
  */
@@ -45,9 +49,14 @@
 
 			schreibe(karte, r, false);
 
-			// Nach dem Schreiben stehen in den Feldern die begrenzten Werte
+			// Nach dem Schreiben stehen in den Feldern die begrenzten Werte.
+			// Der neue Vorschlag ersetzt auch die vorgewählte Variante, damit
+			// ein Hin- und Zurückschalten ihn nicht wieder verliert.
 			var g = lies(karte);
-			editor.setAttribute('data-vorschlag', [g.x, g.y, g.w, g.h].map(function (w) { return w.toFixed(4); }).join(','));
+			var text = [g.x, g.y, g.w, g.h].map(function (w) { return w.toFixed(4); }).join(',');
+
+			editor.setAttribute('data-vorschlag', text);
+			editor.setAttribute('1' === editor.getAttribute('data-zwei') ? 'data-breit' : 'data-schmal', text);
 		},
 		istGeaendert: function (karte) {
 			return karte.classList.contains('metadaten-geaendert');
@@ -117,7 +126,24 @@
 		if (geaendert) {
 			hake(karte, true);
 			karte.classList.add('metadaten-geaendert');
+
+			// Von Hand verändert passt keiner der beiden Knöpfe mehr
+			druecke(karte, null);
 		}
+	}
+
+	/** Liest ein Rechteck aus einem Attribut der Form "x,y,width,height" */
+	function rechteck(editor, attribut) {
+		var werte = (editor.getAttribute(attribut) || '').split(',').map(parseFloat);
+
+		return werte.length === 4 && !werte.some(isNaN) ? {x: werte[0], y: werte[1], w: werte[2], h: werte[3]} : null;
+	}
+
+	/** Markiert den Knopf „1 Spieler“ oder „2 Spieler“ als gewählt; null hebt beide auf */
+	function druecke(karte, wert) {
+		Array.prototype.forEach.call(karte.querySelectorAll('[data-metadaten-spieler]'), function (knopf) {
+			knopf.setAttribute('aria-pressed', knopf.getAttribute('data-metadaten-spieler') === wert ? 'true' : 'false');
+		});
 	}
 
 	function hake(karte, an) {
@@ -276,11 +302,32 @@
 
 		if (zurueck) {
 			var karte = zurueck.closest('[data-metadaten-karte]');
-			var werte = (karte.querySelector('[data-metadaten-editor]').getAttribute('data-vorschlag') || '').split(',').map(parseFloat);
+			var editor = karte.querySelector('[data-metadaten-editor]');
+			var vorschlag = rechteck(editor, 'data-vorschlag');
 
-			if (werte.length === 4 && !werte.some(isNaN)) {
-				schreibe(karte, {x: werte[0], y: werte[1], w: werte[2], h: werte[3]}, false);
+			if (vorschlag) {
+				schreibe(karte, vorschlag, false);
 				karte.classList.remove('metadaten-geaendert');
+				druecke(karte, '1' === editor.getAttribute('data-zwei') ? '2' : '1');
+			}
+
+			ereignis.preventDefault();
+
+			return;
+		}
+
+		// Umschalten zwischen „ein Spieler“ und „zwei Spieler“. Das zählt als
+		// bewusste Wahl: Häkchen „übernehmen“ wird gesetzt wie beim Ziehen.
+		var spieler = ereignis.target.closest('[data-metadaten-spieler]');
+
+		if (spieler) {
+			var spielerKarte = spieler.closest('[data-metadaten-karte]');
+			var wert = spieler.getAttribute('data-metadaten-spieler');
+			var r = rechteck(spielerKarte.querySelector('[data-metadaten-editor]'), '2' === wert ? 'data-breit' : 'data-schmal');
+
+			if (r) {
+				schreibe(spielerKarte, r, true);
+				druecke(spielerKarte, wert);
 			}
 
 			ereignis.preventDefault();

@@ -114,6 +114,15 @@ unscharf. Das Modul misst die Schärfe in einem Raster über das Bild:
   Bildbreite zögen. Die Breite beträgt mindestens 55 Prozent des Bildes.
 * Die **Höhe** reicht von 2 bis 96 Prozent des Bildes, also vom Kopf bis zum
   Brett.
+* Liegt die Schärfe links **und** rechts oder weit verteilt, nimmt das Modul
+  **zwei Spieler** an und schlägt einen breiten Ausschnitt vor, von 5 bis 98
+  Prozent der Breite und 2 bis 90 Prozent der Höhe.
+
+Unter jedem Bild stehen die Knöpfe **„1 Spieler“** und **„2 Spieler“**.
+Hervorgehoben ist, was die Analyse vermutet; ein Klick schaltet um und setzt
+das Häkchen „übernehmen“. Das lohnt sich vor allem, wenn zwei Spieler
+nebeneinandersitzen und nur einer scharf ist: Den zweiten sieht die
+Schärfekarte kaum, die Analyse schlägt dann nur einen Spieler vor.
 
 Zusätzlich sucht der Browser mit
 [pico.js](https://github.com/nenadmarkus/picojs) nach Gesichtern. Liegt ein
@@ -131,10 +140,12 @@ Gesicht mit Oberkörper, das Brett dabei, wenn Blick oder Hand dorthin gehen.
 | Rechteck um die Köpfe, bis Version 1.4.0 | 0,24 |
 | ganzes Bild | 0,61 |
 | Schärferegel, ab Version 1.5.0 | 0,74 |
+| Schärferegel, falsch eingeteilte mit „1 Spieler“ / „2 Spieler“ umgeschaltet | 0,79 |
 
 Überdeckung heißt Schnittfläche durch Vereinigungsfläche; 1 wäre
 deckungsgleich. Der Wert 0,74 stammt von Fotos, an denen die Regel nicht
-eingestellt wurde.
+eingestellt wurde. Die Einteilung in einen oder zwei Spieler trifft 164 der
+206 Fotos; die übrigen 42 lassen sich mit je einem Klick umschalten.
 
 Was die Regel nicht kann: Sie kennt keine Motive, nur Schärfe. Bei
 durchgehend scharfen Fotos wie Gruppenbildern oder Totalen wird das Rechteck

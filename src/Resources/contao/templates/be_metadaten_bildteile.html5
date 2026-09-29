@@ -74,6 +74,9 @@ $pz = static function ($bruchteil): string { return number_format((float) $bruch
 							data-metadaten-editor
 							data-min="<?= $bt($this->mindestgroesse) ?>"
 							data-vorschlag="<?= $bt($bild['teil']['x']) ?>,<?= $bt($bild['teil']['y']) ?>,<?= $bt($bild['teil']['width']) ?>,<?= $bt($bild['teil']['height']) ?>"
+							data-schmal="<?= $bt($bild['schmal']['x']) ?>,<?= $bt($bild['schmal']['y']) ?>,<?= $bt($bild['schmal']['width']) ?>,<?= $bt($bild['schmal']['height']) ?>"
+							data-breit="<?= $bt($bild['breit']['x']) ?>,<?= $bt($bild['breit']['y']) ?>,<?= $bt($bild['breit']['width']) ?>,<?= $bt($bild['breit']['height']) ?>"
+							data-zwei="<?= $bild['zweiSpieler'] ? '1' : '0' ?>"
 							tabindex="0"
 							role="group"
 							aria-label="<?= $sc(sprintf($t['bildteileAria'] ?? 'Wichtiger Teil von %s', basename($bild['path']))) ?>"
@@ -94,6 +97,11 @@ $pz = static function ($bruchteil): string { return number_format((float) $bruch
 
 						<figcaption>
 							<span class="metadaten-name" title="<?= $sc($bild['path']) ?>"><?= $sc(basename($bild['path'])) ?></span>
+							<?php // Umschalten zwischen den beiden Vorschlägen der Bildanalyse; vorgewählt ist ihre Einteilung ?>
+							<span class="metadaten-spieler" role="group" aria-label="<?= $sc($t['spielerGruppe'] ?? 'Ausschnitt') ?>">
+								<button type="button" class="metadaten-spielerknopf" data-metadaten-spieler="1" aria-pressed="<?= $bild['zweiSpieler'] ? 'false' : 'true' ?>" title="<?= $sc($t['spielerEinsTitel'] ?? '') ?>"><?= $sc($t['spielerEins'] ?? '1 Spieler') ?></button>
+								<button type="button" class="metadaten-spielerknopf" data-metadaten-spieler="2" aria-pressed="<?= $bild['zweiSpieler'] ? 'true' : 'false' ?>" title="<?= $sc($t['spielerZweiTitel'] ?? '') ?>"><?= $sc($t['spielerZwei'] ?? '2 Spieler') ?></button>
+							</span>
 							<span class="metadaten-zeile">
 								<input type="checkbox" name="uebernehmen[<?= (int) $bild['id'] ?>]" id="ctrl_uebernehmen_<?= (int) $bild['id'] ?>" class="tl_checkbox" value="1" data-metadaten-haken>
 								<label for="ctrl_uebernehmen_<?= (int) $bild['id'] ?>"><?= $sc($t['bildteileUebernehmen'] ?? 'übernehmen') ?></label>

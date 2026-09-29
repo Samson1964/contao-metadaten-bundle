@@ -83,7 +83,7 @@ class BildanalyseTest extends TestCase
 	public function testScharferBereichObenRechtsBestimmtDieBreite(): void
 	{
 		// Fleck von 70 bis 90 Prozent der Breite, 10 bis 35 Prozent der Höhe
-		$teil = Bildanalyse::wichtigerTeil($this->bildMitFleck(1200, 800, 840, 80, 240, 200));
+		$teil = Bildanalyse::vorschlaege($this->bildMitFleck(1200, 800, 840, 80, 240, 200))['schmal'] ?? null;
 
 		$this->assertNotNull($teil);
 		$this->assertTeilEnthaelt($teil, 0.8, 0.225);
@@ -102,7 +102,7 @@ class BildanalyseTest extends TestCase
 		$zweites = $this->bildMitFleck(1200, 800, 800, 560, 300, 200);
 		imagecopy($bild, $zweites, 800, 560, 800, 560, 300, 200);
 
-		$teil = Bildanalyse::wichtigerTeil($bild);
+		$teil = Bildanalyse::vorschlaege($bild)['schmal'] ?? null;
 
 		$this->assertNotNull($teil);
 		$this->assertTeilEnthaelt($teil, 0.183, 0.225);
@@ -113,18 +113,47 @@ class BildanalyseTest extends TestCase
 	public function testNurUntenScharfNimmtDasGanzeBild(): void
 	{
 		// Einziger scharfer Bereich unten links: Ersatzweise zählt das ganze Bild
-		$teil = Bildanalyse::wichtigerTeil($this->bildMitFleck(600, 900, 60, 600, 180, 180));
+		$teil = Bildanalyse::vorschlaege($this->bildMitFleck(600, 900, 60, 600, 180, 180))['schmal'] ?? null;
 
 		$this->assertNotNull($teil);
 		$this->assertLessThanOrEqual(0.25, $teil['x']);
 		$this->assertGreaterThanOrEqual(0.25, $teil['x'] + $teil['width']);
 	}
 
+	public function testZweiScharfeBereicheLinksUndRechtsGeltenAlsZweiSpieler(): void
+	{
+		// Links und rechts oben je ein scharfer Kopfbereich
+		$bild = $this->bildMitFleck(1200, 800, 60, 80, 240, 240);
+		$rechts = $this->bildMitFleck(1200, 800, 900, 80, 240, 240);
+		imagecopy($bild, $rechts, 900, 80, 900, 80, 240, 240);
+
+		$vorschlaege = Bildanalyse::vorschlaege($bild);
+
+		$this->assertNotNull($vorschlaege);
+		$this->assertTrue($vorschlaege['zweiSpieler']);
+		$this->assertSame($vorschlaege['breit'], $vorschlaege['gewaehlt']);
+		$this->assertGreaterThanOrEqual(0.9, $vorschlaege['breit']['width']);
+		// Die schmale Variante wird trotzdem mitgeliefert, damit der Editor umschalten kann
+		$this->assertArrayHasKey('schmal', $vorschlaege);
+		$this->assertSame($vorschlaege['breit'], Bildanalyse::wichtigerTeil($bild));
+	}
+
+	public function testEinScharferBereichGiltAlsEinSpieler(): void
+	{
+		$bild = $this->bildMitFleck(1200, 800, 840, 80, 240, 200);
+		$vorschlaege = Bildanalyse::vorschlaege($bild);
+
+		$this->assertNotNull($vorschlaege);
+		$this->assertFalse($vorschlaege['zweiSpieler']);
+		$this->assertSame($vorschlaege['schmal'], $vorschlaege['gewaehlt']);
+		$this->assertTeilEnthaelt($vorschlaege['gewaehlt'], 0.8, 0.225);
+	}
+
 	public function testErgebnisLiegtImmerImBild(): void
 	{
 		foreach (array(array(0, 0), array(1000, 0), array(0, 600), array(1000, 600)) as $ecke)
 		{
-			$teil = Bildanalyse::wichtigerTeil($this->bildMitFleck(1200, 800, $ecke[0], $ecke[1], 200, 200));
+			$teil = Bildanalyse::vorschlaege($this->bildMitFleck(1200, 800, $ecke[0], $ecke[1], 200, 200))['schmal'] ?? null;
 
 			$this->assertNotNull($teil);
 			$this->assertGreaterThanOrEqual(0.0, $teil['x']);
