@@ -1,47 +1,64 @@
 # Fremddateien
 
 Die Dateien in diesem Verzeichnis stammen nicht vom Autor des Bundles. Sie
-liegen **unverändert** bei, damit die Gesichtserkennung im Bildteil-Editor
+liegen **unverändert** bei, damit die Personenerkennung im Bildteil-Editor
 ohne Zugriff auf fremde Server auskommt.
 
-| Datei | Herkunft | Stand | SHA-256 |
-| --- | --- | --- | --- |
-| `pico.js` | <https://github.com/nenadmarkus/picojs> | Commit `afffa50ec4134a47005f2cbf8112eaa69f65f37e` | `785b981cc79e5fa3f7557dc3fa7773629d7529994d7627de41b77d8687649309` |
-| `facefinder.bin` | <https://github.com/nenadmarkus/pico>, dort `rnt/cascades/facefinder` | Commit `c2e81f9d23cc11d1a612fd21e4f9de0921a5d0d9` | `d8014993e7298c7b1865d1f8b855d6dbf4ec5c808bf879e2091ab6837abf90cd` |
+## MediaPipe Tasks Vision
 
-`facefinder.bin` heißt im Original `facefinder` ohne Endung. Die Endung ist
-ergänzt, damit Webserver die Datei ohne Sonderregel ausliefern; der Inhalt
-ist derselbe.
+| Datei | Herkunft | SHA-256 |
+| --- | --- | --- |
+| `mediapipe/vision_bundle.js` | npm-Paket `@mediapipe/tasks-vision` 1.0.1 | `98db72469ffb176f5e9f2687be0f70783893aca681f7789c34b872b0a764371a` |
+| `mediapipe/wasm/vision_wasm_internal.js` | dasselbe Paket, Verzeichnis `wasm/` | `e170ee67dd4e16c1a6fcd8840a206687e5a59b22c20e4a902bc445b095454d73` |
+| `mediapipe/wasm/vision_wasm_internal.wasm` | dasselbe Paket, Verzeichnis `wasm/` | `8da277a733926eacd0474b8704b36742d6ec3231c57a860c5b889dff8f1df886` |
+| `mediapipe/efficientdet_lite0_int8.tflite` | <https://storage.googleapis.com/mediapipe-models/object_detector/efficientdet_lite0/int8/latest/efficientdet_lite0.tflite> | `0720bf247bd76e6594ea28fa9c6f7c5242be774818997dbbeffc4da460c723bb` |
+| `mediapipe/LICENSE` | <https://github.com/google-ai-edge/mediapipe/blob/master/LICENSE> | `8707eef0533987efc5b155d64761eeb6e20793f50b9bd1a68dad1cf4719d0ed8` |
 
-`tools/pruefstand.php` vergleicht beide Prüfsummen. Wer eine Datei
+Das npm-Archiv `tasks-vision-1.0.1.tgz` stimmte beim Herunterladen am
+2026-09-29 mit der Integritätsangabe der Registry überein
+(`sha512-rvRE2FmAZ6ZxKSw7wq+e+jQDpN3t1B/tD2mJz9SmAzb1msoDkd4dMoE4wAh8Z30Um0PQwLiHr9QtomhmXk3aUQ==`).
+
+Aus dem Paket liegen nur die Dateien bei, die der Editor braucht:
+
+* `vision_bundle.js` ist die Fassung als klassisches Skript mit der globalen
+  Variablen `Vision`. Die Modulfassung `.mjs` wurde bewusst nicht genommen:
+  Manche Webserver liefern `.mjs` mit falschem Typ aus, und dann verweigert
+  der Browser das Laden.
+* Aus `wasm/` nur die Fassung mit SIMD. Die Fassung ohne SIMD (weitere
+  11 MB) bräuchten nur Browser von vor 2021; dort schlägt die Erkennung fehl,
+  und der Editor behält den Vorschlag aus der Schärfe.
+* Als Modell nur EfficientDet-Lite0 in der int8-Fassung (4,6 MB). Die
+  größeren Modelle EfficientDet-Lite2 und die Körperhaltungsmodelle waren
+  in der Messung an 206 Turnierfotos nicht besser.
+
+`tools/pruefstand.php` vergleicht alle Prüfsummen. Wer eine Datei
 aktualisiert, trägt Stand und Prüfsumme hier und im Prüfstand nach.
 
 ## Lizenz
 
-Beide Projekte stehen unter der MIT-Lizenz. `pico.js` sagt das in seiner
-ersten Zeile und in der Readme seines Repositorys, das Projekt `pico` in
-seiner Lizenzdatei. Urheber ist Nenad Markuš.
+MediaPipe steht unter der Apache License 2.0 (Paketangabe `"license":
+"Apache-2.0"`, Lizenzdatei des Repositorys `google-ai-edge/mediapipe`); der
+Lizenztext liegt als `mediapipe/LICENSE` bei. Die Modellseite von Google
+nennt für EfficientDet-Lite0 keine eigene Lizenz; das Modell stammt aus dem
+Projekt `google/automl`, das ebenfalls unter Apache 2.0 steht.
 
-```
-MIT License
+## Datenschutz
 
-Copyright (c) Nenad Markuš
+MediaPipe Tasks sendet laut Datenschutzhinweis des Pakets von sich aus
+Kennzahlen zur Nutzung an Google (Betriebssystem, Version, Rechenzeiten)
+und überlässt es dem Betreiber, dafür eine Einwilligung einzuholen. Die
+Bilder selbst verlassen das Gerät nicht. Der Versand läuft alle 60 Sekunden
+per `fetch` an `https://odml.pa.googleapis.com/v1/log`.
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+`personen.js` unterbindet diesen Versand: Vor dem Laden von MediaPipe
+ersetzt es `window.fetch` durch eine Hülle, die genau diese Adresse abweist.
+Nach dem ersten Fehlschlag stellt MediaPipe den Versand von selbst ein. Die
+Dateien hier bleiben dafür unverändert. Nachgewiesen am 2026-09-29: ein
+abgefangener Versuch nach 60 Sekunden, keine Anfrage an Google im
+Netzwerkprotokoll des Browsers.
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+## Webserver
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-```
+Die `.wasm`-Datei sollte mit dem Typ `application/wasm` ausgeliefert werden.
+Tut der Server das nicht, lädt MediaPipe sie auf dem langsameren Weg über
+einen ArrayBuffer; die Erkennung funktioniert trotzdem.

@@ -124,28 +124,52 @@ das Häkchen „übernehmen“. Das lohnt sich vor allem, wenn zwei Spieler
 nebeneinandersitzen und nur einer scharf ist: Den zweiten sieht die
 Schärfekarte kaum, die Analyse schlägt dann nur einen Spieler vor.
 
-Zusätzlich sucht der Browser mit
-[pico.js](https://github.com/nenadmarkus/picojs) nach Gesichtern. Liegt ein
-sicher erkanntes Gesicht außerhalb des Vorschlags, wird er seitlich
-erweitert. Verkleinert wird er nie. Bibliothek und Erkennungsdaten liegen
-dem Bundle bei und laufen vollständig im Browser: Es wird kein Bild und kein
-Ergebnis an einen fremden Server übertragen.
+#### Personenerkennung mit MediaPipe
 
-Die Regel ist an 206 Turnierfotos gemessen, deren wichtigen Teil ein
+Im Editor sucht der Browser zusätzlich mit
+[MediaPipe](https://github.com/google-ai-edge/mediapipe) nach Personen und
+verbindet sie mit der Schärfekarte, die der Server mitliefert:
+
+* Gezählt werden nur sicher erkannte Personen, die mindestens 30 Prozent der
+  Bildhöhe einnehmen.
+* Je Person misst der Browser die Schärfe an Kopf und Oberkörper. Die
+  schärfste Person ist der Hauptspieler.
+* Mitgenommen wird jede weitere Person, die mindestens 60 Prozent so groß
+  und halb so scharf ist wie er. So kommt der Nachbar am selben Brett dazu,
+  der unscharfe Gegner im Vordergrund und der Hintergrund nicht.
+* Das Rechteck umfasst diese Personen und den Vorschlag aus der Schärfe,
+  seitlich um 6 Prozent erweitert, in der Höhe wie oben.
+
+Danach ist keiner der Knöpfe „1 Spieler“ / „2 Spieler“ gedrückt; beide
+bleiben als Alternative. Findet MediaPipe keine Person oder lädt es nicht,
+bleibt der Vorschlag aus der Schärfe stehen.
+
+Bibliothek und Modell liegen dem Bundle bei (rund 16,8 MB) und laufen
+vollständig im Browser; die Bilder verlassen das Gerät nicht. **MediaPipe
+würde von sich aus Nutzungskennzahlen an Google senden** (Betriebssystem,
+Version, Rechenzeiten). Das Bundle unterbindet diesen Versand. Einzelheiten
+stehen in `src/Resources/public/js/vendor/LIESMICH.md`.
+
+#### Wie gut das trifft
+
+Die Regeln sind an 206 Turnierfotos gemessen, deren wichtigen Teil ein
 Benutzer von Hand markiert hatte. Kriterien waren: scharf abgebildet,
 Gesicht mit Oberkörper, das Brett dabei, wenn Blick oder Hand dorthin gehen.
 
-| Vorschlag | mittlere Überdeckung mit den Markierungen |
-| --- | --- |
-| Rechteck um die Köpfe, bis Version 1.4.0 | 0,24 |
-| ganzes Bild | 0,61 |
-| Schärferegel, ab Version 1.5.0 | 0,74 |
-| Schärferegel, falsch eingeteilte mit „1 Spieler“ / „2 Spieler“ umgeschaltet | 0,79 |
+| Vorschlag | mittlere Überdeckung | ab 0,8 Überdeckung |
+| --- | --- | --- |
+| Rechteck um die Köpfe, bis Version 1.4.0 | 0,24 | 0 % |
+| ganzes Bild | 0,61 | 12 % |
+| Schärferegel, ab Version 1.5.0 | 0,75 | 41 % |
+| Schärfe und Personen aus MediaPipe, ab Version 1.7.0 | 0,78 | 50 % |
 
 Überdeckung heißt Schnittfläche durch Vereinigungsfläche; 1 wäre
-deckungsgleich. Der Wert 0,74 stammt von Fotos, an denen die Regel nicht
-eingestellt wurde. Die Einteilung in einen oder zwei Spieler trifft 164 der
-206 Fotos; die übrigen 42 lassen sich mit je einem Klick umschalten.
+deckungsgleich. Auf den Fotos, an denen die Werte nicht eingestellt wurden,
+lagen Schärfe allein bei 0,746 und Schärfe mit Personen bei 0,774.
+
+Die Einteilung der Schärferegel in einen oder zwei Spieler trifft 164 der
+206 Fotos. Wer die übrigen mit „1 Spieler“ / „2 Spieler“ umschaltet, kommt
+auf 0,79.
 
 Was die Regel nicht kann: Sie kennt keine Motive, nur Schärfe. Bei
 durchgehend scharfen Fotos wie Gruppenbildern oder Totalen wird das Rechteck
@@ -159,7 +183,7 @@ Mit dem Häkchen **„Wichtigen Bildteil automatisch markieren“** im Auftrag
 setzt das Modul den wichtigen Teil beim Ausführen ungeprüft für alle
 ausgewählten Bilder, die noch keinen haben. Bereits markierte Bilder werden
 nie angefasst. Es verwendet dieselbe Schärferegel wie der Editor, aber ohne
-Gesichtserkennung, weil die nur im Browser läuft. Die Vorschau zeigt für die
+Personenerkennung, weil MediaPipe nur im Browser läuft. Die Vorschau zeigt für die
 ersten zwölf Bilder das Rechteck über dem Bild. Was nicht passt, lässt sich
 danach im Editor oder in der Dateiverwaltung nachbessern oder über die
 Versionen der Datei zurücksetzen.
@@ -252,11 +276,12 @@ und Speichern.
 
 Die Stellschrauben der Schärferegel stehen als Konstanten in
 `src/Classes/Bildanalyse.php`, samt Herkunft der Werte.
-`src/Resources/public/js/gesichter.js` verbindet den Editor mit pico.js; dort
-legen `SICHER` und `SEITE` fest, ab welcher Güte ein Gesicht den Vorschlag
-erweitert und um wie viel. Die Fremddateien unter `js/vendor/` bleiben
-unverändert; Herkunft, Prüfsummen und Lizenz stehen in der `LIESMICH.md`
-daneben.
+`src/Resources/public/js/personen.js` verbindet den Editor mit MediaPipe und
+enthält die Versandsperre; die Schwellen der Personenregel stehen dort als
+Konstanten am Anfang. `tools/bildteilmessung.php` misst nur die Schärferegel
+auf dem Server; die Personenregel lässt sich nur im Browser messen. Die
+Fremddateien unter `js/vendor/mediapipe/` bleiben unverändert; Herkunft,
+Prüfsummen und Lizenz stehen in `js/vendor/LIESMICH.md`.
 
 ### Messung an eigenen Fotos
 
@@ -275,9 +300,10 @@ DSSAM-Galerie 2026 auf schachbund.de und liegen nicht im Repository.
 
 ## Lizenz der Fremddateien
 
-pico.js und die Erkennungsdaten `facefinder` stehen unter der MIT-Lizenz,
-Urheber ist Nenad Markuš. Der Lizenztext liegt unter
-`src/Resources/public/js/vendor/LIESMICH.md`.
+MediaPipe Tasks Vision und das Modell EfficientDet-Lite0 stehen unter der
+Apache License 2.0. Der Lizenztext liegt unter
+`src/Resources/public/js/vendor/mediapipe/LICENSE`, Herkunft und Prüfsummen
+unter `src/Resources/public/js/vendor/LIESMICH.md`.
 
 ```
 vendor/bin/phpunit          # Unit-Tests der Kernlogik (tests/)

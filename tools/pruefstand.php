@@ -323,32 +323,42 @@ foreach (array('data-metadaten-karte', 'data-metadaten-editor', 'data-metadaten-
 	pruefe($attribut.' in Skript und Template', false !== strpos($skript, $attribut) && false !== strpos($editor, $attribut), $fehler);
 }
 
-// Gesichtserkennung: eigenes Skript und die unverändert beigelegten Fremddateien
-$gesichter = (string) file_get_contents($bundle.'/src/Resources/public/js/gesichter.js');
-pruefe('gesichter.js vorhanden', '' !== $gesichter, $fehler);
+// Personenerkennung: eigenes Skript und die unverändert beigelegten MediaPipe-Dateien
+$personen = (string) file_get_contents($bundle.'/src/Resources/public/js/personen.js');
+pruefe('personen.js vorhanden', '' !== $personen, $fehler);
 
-foreach (array('data-metadaten-kaskade', 'data-metadaten-fund', 'data-text-suche', 'data-text-eins', 'data-text-viele', 'data-text-keins') as $attribut)
+foreach (array('data-metadaten-mediapipe', 'data-wasm', 'data-modell', 'data-schaerfe', 'data-schmal', 'data-metadaten-fund', 'data-text-suche', 'data-text-eins', 'data-text-viele', 'data-text-keins') as $attribut)
 {
-	pruefe($attribut.' in gesichter.js und Template', false !== strpos($gesichter, $attribut) && false !== strpos($editor, $attribut), $fehler);
+	pruefe($attribut.' in personen.js und Template', false !== strpos($personen, $attribut) && false !== strpos($editor, $attribut), $fehler);
 }
 
+// Die Sperre für den Versand von Nutzungsdaten an Google muss vor MediaPipe greifen
+pruefe('personen.js sperrt odml.pa.googleapis.com', false !== strpos($personen, 'odml\.pa\.googleapis\.com'), $fehler);
+
 $fremd = array(
-	'pico.js'        => '785b981cc79e5fa3f7557dc3fa7773629d7529994d7627de41b77d8687649309',
-	'facefinder.bin' => 'd8014993e7298c7b1865d1f8b855d6dbf4ec5c808bf879e2091ab6837abf90cd',
+	'mediapipe/vision_bundle.js'               => '98db72469ffb176f5e9f2687be0f70783893aca681f7789c34b872b0a764371a',
+	'mediapipe/wasm/vision_wasm_internal.js'   => 'e170ee67dd4e16c1a6fcd8840a206687e5a59b22c20e4a902bc445b095454d73',
+	'mediapipe/wasm/vision_wasm_internal.wasm' => '8da277a733926eacd0474b8704b36742d6ec3231c57a860c5b889dff8f1df886',
+	'mediapipe/efficientdet_lite0_int8.tflite' => '0720bf247bd76e6594ea28fa9c6f7c5242be774818997dbbeffc4da460c723bb',
+	'mediapipe/LICENSE'                        => '8707eef0533987efc5b155d64761eeb6e20793f50b9bd1a68dad1cf4719d0ed8',
 );
 
 foreach ($fremd as $datei => $summe)
 {
 	$pfad = $bundle.'/src/Resources/public/js/vendor/'.$datei;
 	pruefe('vendor/'.$datei.' unverändert (SHA-256)', is_file($pfad) && $summe === hash_file('sha256', $pfad), $fehler);
-	pruefe('vendor/'.$datei.' im Template eingebunden', false !== strpos($editor, 'js/vendor/'.$datei), $fehler);
 }
 
+// Das WebAssembly-Verzeichnis und das Modell werden über data-Attribute gefunden, das Bundle per Skript-Tag
+pruefe('MediaPipe-Bibliothek im Template eingebunden', false !== strpos($editor, 'js/vendor/mediapipe/vision_bundle.js'), $fehler);
+pruefe('WebAssembly-Verzeichnis im Template', false !== strpos($editor, 'data-wasm="bundles/contaometadaten/js/vendor/mediapipe/wasm"'), $fehler);
+pruefe('Modell im Template', false !== strpos($editor, 'data-modell="bundles/contaometadaten/js/vendor/mediapipe/efficientdet_lite0_int8.tflite"'), $fehler);
+pruefe('keine Reste von pico.js', !is_file($bundle.'/src/Resources/public/js/vendor/pico.js') && false === strpos($editor, 'pico'), $fehler);
 pruefe('Herkunft und Lizenz der Fremddateien dokumentiert', is_file($bundle.'/src/Resources/public/js/vendor/LIESMICH.md'), $fehler);
 
-// Die Reihenfolge zählt: pico.js vor gesichter.js, bildteile.js vor gesichter.js
-$reihenfolge = array(strpos($editor, 'js/vendor/pico.js'), strpos($editor, 'js/bildteile.js'), strpos($editor, 'js/gesichter.js'));
-pruefe('Skripte im Template in der richtigen Reihenfolge', false !== $reihenfolge[0] && $reihenfolge[0] < $reihenfolge[2] && $reihenfolge[1] < $reihenfolge[2], $fehler);
+// Die Reihenfolge zählt: MediaPipe und bildteile.js vor personen.js
+$reihenfolge = array(strpos($editor, 'js/vendor/mediapipe/vision_bundle.js'), strpos($editor, 'js/bildteile.js'), strpos($editor, 'js/personen.js'));
+pruefe('Skripte im Template in der richtigen Reihenfolge', false !== $reihenfolge[0] && false !== $reihenfolge[2] && $reihenfolge[0] < $reihenfolge[2] && $reihenfolge[1] < $reihenfolge[2], $fehler);
 
 pruefe('Mindestgröße in PHP und Skript gleich', false !== strpos($skript, (string) Schachbulle\ContaoMetadatenBundle\Classes\Bildteil::MINDESTGROESSE), $fehler);
 

@@ -3,6 +3,9 @@ package-metadata.yml export-ignore
 .gitattributes export-ignore
 
 # Fremddateien unverändert halten: keine Umwandlung der Zeilenenden,
-# die Erkennungsdaten sind binär
-src/Resources/public/js/vendor/pico.js -text
-*.bin binary
+# WebAssembly und Modelle sind binär
+src/Resources/public/js/vendor/mediapipe/*.js -text
+src/Resources/public/js/vendor/mediapipe/wasm/*.js -text
+src/Resources/public/js/vendor/mediapipe/LICENSE -text
+*.wasm binary
+*.tflite binary

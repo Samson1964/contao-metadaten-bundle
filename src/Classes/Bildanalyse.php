@@ -160,7 +160,7 @@ final class Bildanalyse
 	 *
 	 * @param string $pfad Absoluter Pfad einer Bilddatei in einem Format, das GD lesen kann
 	 *
-	 * @return array{schmal: array, breit: array, zweiSpieler: bool, gewaehlt: array}|null
+	 * @return array{schmal: array, breit: array, zweiSpieler: bool, gewaehlt: array, schaerfe: array}|null
 	 *         Siehe vorschlaege(); null, wenn die Datei nicht lesbar ist oder
 	 *         das Bild keine Struktur hat
 	 */
@@ -220,8 +220,9 @@ final class Bildanalyse
 	 *
 	 * @param \GdImage|resource $bild Das Bild; es wird nicht verändert
 	 *
-	 * @return array{schmal: array, breit: array, zweiSpieler: bool, gewaehlt: array}|null
-	 *         Rechtecke jeweils als array{x, y, width, height} in Bruchteilen;
+	 * @return array{schmal: array, breit: array, zweiSpieler: bool, gewaehlt: array, schaerfe: array}|null
+	 *         Rechtecke jeweils als array{x, y, width, height} in Bruchteilen,
+	 *         dazu die Schärfekarte über dem Grundpegel für den Browser;
 	 *         null, wenn das Bild zu klein ist oder keine Struktur hat
 	 */
 	public static function vorschlaege($bild): ?array
@@ -265,7 +266,50 @@ final class Bildanalyse
 			'breit'       => $breitTeil,
 			'zweiSpieler' => $zwei,
 			'gewaehlt'    => $zwei ? $breitTeil : $schmal,
+			'schaerfe'    => self::kartenwerte($karte),
 		);
+	}
+
+	/**
+	 * Liefert den Grundpegel der Schärfekarte: das Perzentil GRUNDPEGEL aller Zellwerte.
+	 *
+	 * @param array<int, array<int, float>> $karte Zellwerte [zeile][spalte]
+	 *
+	 * @return float Der Wert, der als Rauschen abgezogen wird
+	 */
+	private static function grundpegel(array $karte): float
+	{
+		$alle = array_merge(...$karte);
+		sort($alle);
+
+		return $alle[(int) floor(self::GRUNDPEGEL * (\count($alle) - 1))];
+	}
+
+	/**
+	 * Gibt die Schärfekarte über dem Grundpegel in knapper Form zurück.
+	 *
+	 * Gedacht für den Browser: personen.js gewichtet damit die erkannten
+	 * Personen. Eine Nachkommastelle genügt; die meisten Zellen liegen unter
+	 * dem Grundpegel und werden zu „0“, das hält die Seite klein.
+	 *
+	 * @param array<int, array<int, float>> $karte Zellwerte [zeile][spalte]
+	 *
+	 * @return array<int, array<int, float>> Werte über dem Grundpegel [zeile][spalte]
+	 */
+	private static function kartenwerte(array $karte): array
+	{
+		$grund = self::grundpegel($karte);
+		$werte = array();
+
+		foreach ($karte as $zy => $zeile)
+		{
+			foreach ($zeile as $zx => $wert)
+			{
+				$werte[$zy][$zx] = round(max(0.0, $wert - $grund), 1);
+			}
+		}
+
+		return $werte;
 	}
 
 	/**
@@ -428,9 +472,7 @@ final class Bildanalyse
 	 */
 	private static function spaltenmasse(array $karte): ?array
 	{
-		$alle = array_merge(...$karte);
-		sort($alle);
-		$grund = $alle[(int) floor(self::GRUNDPEGEL * (\count($alle) - 1))];
+		$grund = self::grundpegel($karte);
 
 		foreach (array((int) ceil(self::OBERER_TEIL * self::ZEILEN), self::ZEILEN) as $zeilen)
 		{

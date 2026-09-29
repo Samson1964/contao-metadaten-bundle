@@ -138,6 +138,22 @@ class BildanalyseTest extends TestCase
 		$this->assertSame($vorschlaege['breit'], Bildanalyse::wichtigerTeil($bild));
 	}
 
+	public function testSchaerfekarteFuerDenBrowser(): void
+	{
+		$vorschlaege = Bildanalyse::vorschlaege($this->bildMitFleck(1200, 800, 840, 80, 240, 200));
+
+		$this->assertNotNull($vorschlaege);
+		// Raster aus 27 Zeilen mal 48 Spalten, Werte über dem Grundpegel, also nie negativ
+		$this->assertCount(27, $vorschlaege['schaerfe']);
+		$this->assertCount(48, $vorschlaege['schaerfe'][0]);
+		$this->assertGreaterThanOrEqual(0.0, min(array_merge(...$vorschlaege['schaerfe'])));
+
+		// Der scharfe Fleck (70 bis 90 Prozent der Breite, 10 bis 35 Prozent der Höhe) trägt die Masse
+		$imFleck = $vorschlaege['schaerfe'][5][38];
+		$ausserhalb = $vorschlaege['schaerfe'][20][10];
+		$this->assertGreaterThan($ausserhalb, $imFleck);
+	}
+
 	public function testEinScharferBereichGiltAlsEinSpieler(): void
 	{
 		$bild = $this->bildMitFleck(1200, 800, 840, 80, 240, 200);

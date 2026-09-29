@@ -40,7 +40,7 @@
 		return;
 	}
 
-	// Schnittstelle für gesichter.js: einen neuen Vorschlag setzen, ohne die
+	// Schnittstelle für personen.js: einen neuen Vorschlag setzen, ohne die
 	// Karte als von Hand geändert zu kennzeichnen. Die Funktionen selbst
 	// stehen weiter unten; Funktionsdeklarationen gelten im ganzen Block.
 	window.MetadatenBildteile = {
@@ -50,13 +50,13 @@
 			schreibe(karte, r, false);
 
 			// Nach dem Schreiben stehen in den Feldern die begrenzten Werte.
-			// Der neue Vorschlag ersetzt auch die vorgewählte Variante, damit
-			// ein Hin- und Zurückschalten ihn nicht wieder verliert.
+			// Der neue Vorschlag ist weder „ein“ noch „zwei Spieler“; die
+			// beiden Knöpfe bleiben als Alternative, keiner ist gedrückt.
 			var g = lies(karte);
-			var text = [g.x, g.y, g.w, g.h].map(function (w) { return w.toFixed(4); }).join(',');
 
-			editor.setAttribute('data-vorschlag', text);
-			editor.setAttribute('1' === editor.getAttribute('data-zwei') ? 'data-breit' : 'data-schmal', text);
+			editor.setAttribute('data-vorschlag', [g.x, g.y, g.w, g.h].map(function (w) { return w.toFixed(4); }).join(','));
+			editor.setAttribute('data-zwei', '');
+			druecke(karte, null);
 		},
 		istGeaendert: function (karte) {
 			return karte.classList.contains('metadaten-geaendert');
@@ -308,7 +308,9 @@
 			if (vorschlag) {
 				schreibe(karte, vorschlag, false);
 				karte.classList.remove('metadaten-geaendert');
-				druecke(karte, '1' === editor.getAttribute('data-zwei') ? '2' : '1');
+				// Gedrückt wird nur, was dem Vorschlag entspricht; nach der
+				// Personenerkennung (data-zwei leer) keiner der beiden Knöpfe
+				druecke(karte, {'1': '2', '0': '1'}[editor.getAttribute('data-zwei')] || null);
 			}
 
 			ereignis.preventDefault();

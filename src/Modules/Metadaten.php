@@ -297,10 +297,10 @@ class Metadaten
 
 		// Der Editor ist reines JavaScript ohne Abhängigkeit von MooTools
 		// (Contao 4.13) oder Stimulus (Contao 5)
-		// pico.js (Gesichtserkennung im Browser) muss vor gesichter.js stehen
-		$GLOBALS['TL_JAVASCRIPT'][] = 'bundles/contaometadaten/js/vendor/pico.js';
+		// MediaPipe (Personenerkennung im Browser) muss vor personen.js stehen
+		$GLOBALS['TL_JAVASCRIPT'][] = 'bundles/contaometadaten/js/vendor/mediapipe/vision_bundle.js';
 		$GLOBALS['TL_JAVASCRIPT'][] = 'bundles/contaometadaten/js/bildteile.js';
-		$GLOBALS['TL_JAVASCRIPT'][] = 'bundles/contaometadaten/js/gesichter.js';
+		$GLOBALS['TL_JAVASCRIPT'][] = 'bundles/contaometadaten/js/personen.js';
 
 		$template = new BackendTemplate('be_metadaten_bildteile');
 		$template->texte = $texte;

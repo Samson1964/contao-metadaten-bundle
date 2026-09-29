@@ -133,13 +133,14 @@ final class Bildteil
 	 * @param string $pfad  Pfad der Datei relativ zum Projektverzeichnis, wie in tl_files.path
 	 * @param int    $kante Kantenlänge des Vorschaubildes in Pixeln
 	 *
-	 * @return array{url: string, breite: int, hoehe: int, teil: array, schmal: array, breit: array, zweiSpieler: bool, geschaetzt: bool}|null
+	 * @return array{url: string, breite: int, hoehe: int, teil: array, schmal: array, breit: array, zweiSpieler: bool, geschaetzt: bool, schaerfe: array}|null
 	 *         Adresse und Maße des Vorschaubildes; der gewählte Vorschlag
 	 *         („teil“) und beide Varianten „ein Spieler“ („schmal“) und „zwei
 	 *         Spieler“ („breit“), jeweils als array{x, y, width, height} in
-	 *         Bruchteilen; ob die Analyse zwei Spieler annimmt und ob der
-	 *         Vorschlag überhaupt aus der Analyse stammt. null, wenn sich kein
-	 *         Vorschaubild erzeugen lässt
+	 *         Bruchteilen; ob die Analyse zwei Spieler annimmt, ob der
+	 *         Vorschlag überhaupt aus der Analyse stammt, und die Schärfekarte
+	 *         für die Personenerkennung im Browser (leer ohne Analyse). null,
+	 *         wenn sich kein Vorschaubild erzeugen lässt
 	 */
 	public static function vorschlag(string $pfad, int $kante): ?array
 	{
@@ -162,6 +163,7 @@ final class Bildteil
 			'breit'       => $analyse['breit'] ?? array('x' => 0.05, 'y' => 0.02, 'width' => 0.93, 'height' => 0.88),
 			'zweiSpieler' => (bool) ($analyse['zweiSpieler'] ?? false),
 			'geschaetzt'  => null !== $analyse,
+			'schaerfe'    => $analyse['schaerfe'] ?? array(),
 		);
 	}
 

@@ -1,5 +1,25 @@
 # Metadaten Changelog
 
+## Version 1.7.0 (2026-09-29)
+
+Keine Datenbankaktualisierung nötig. Die öffentlichen Dateien des Bundles müssen neu verlinkt werden (Contao Manager oder `contao:symlinks`), sonst fehlen die neuen Skripte.
+
+* Add: **Personenerkennung mit MediaPipe** im Bildteil-Editor (Objekterkennung EfficientDet-Lite0, Kategorie „person“). Der Browser sucht die Personen in jedem Vorschaubild, misst ihre Schärfe an Kopf und Oberkörper und legt das Rechteck um den schärfsten Spieler und jeden ähnlich großen, ähnlich scharfen Nachbarn
+* Add: MediaPipe Tasks Vision 1.0.1 und das Modell liegen unverändert unter `src/Resources/public/js/vendor/mediapipe/` bei (rund 16,8 MB), samt Lizenztext (Apache 2.0), Herkunft und Prüfsummen; der Prüfstand vergleicht die Prüfsummen
+* Add: Die Bildanalyse liefert die Schärfekarte an den Browser mit (im Mittel 3,3 KB je Bild)
+* Change: MediaPipe sendet von sich aus Nutzungskennzahlen an Google. `personen.js` unterbindet diesen Versand, ohne die MediaPipe-Dateien zu verändern; die Bilder verlassen das Gerät ohnehin nicht
+* Change: Nach der Personenerkennung ist keiner der Knöpfe „1 Spieler“ / „2 Spieler“ gedrückt, beide bleiben als Alternative
+* Change: pico.js und `gesichter.js` sind entfernt; die Personenerkennung übernimmt ihre Aufgabe, und in der Messung trug pico.js nichts mehr bei
+
+Gemessen an den 206 Markierungen der DSSAM-Galerie, mit dem echten Skript im Browser:
+
+| | Schärfe allein (1.6.0) | Schärfe und Personen (1.7.0) |
+| --- | --- | --- |
+| Mittlere Überdeckung | 0,75 | 0,78 |
+| Vorschläge ab 0,8 Überdeckung | 41 % | 50 % |
+
+Auf der Hälfte der Fotos, an der die Werte nicht eingestellt wurden: 0,746 und 0,774. Das größere Modell EfficientDet-Lite2 und die Körperhaltungsmodelle von MediaPipe waren nicht besser. Die automatische Markierung beim Ausführen eines Auftrags läuft auf dem Server und bleibt bei der Schärferegel.
+
 ## Version 1.6.0 (2026-09-29)
 
 Keine Datenbankaktualisierung nötig.
