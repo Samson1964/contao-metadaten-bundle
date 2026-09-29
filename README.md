@@ -102,49 +102,56 @@ Liste, die übrigen rücken nach.
 
 Der Editor läuft mit Maus, Finger und Tastatur.
 
-#### Gesichtserkennung
+#### So entsteht der Vorschlag
 
-Sobald die Seite geladen ist, sucht der Browser in jedem Bild nach
-Gesichtern. Findet er welche, rückt der Vorschlag auf die Köpfe, mit etwas
-Zugabe für Haare und Kinn; bei mehreren Gesichtern umschließt das Rechteck
-alle. Unter jedem Bild steht das Ergebnis. Ohne Fund bleibt die Schätzung
-aus dem Bildinhalt stehen.
+Der Vorschlag folgt der **Schärfe** des Fotos. Auf Reportagefotos mit
+geringer Schärfentiefe ist das Motiv scharf, Hintergrund und Vordergrund sind
+unscharf. Das Modul misst die Schärfe in einem Raster über das Bild:
 
-Die Erkennung leistet [pico.js](https://github.com/nenadmarkus/picojs) von
-Nenad Markuš (MIT-Lizenz). Bibliothek und Erkennungsdaten liegen dem Bundle
-bei und laufen vollständig im Browser: Es wird kein Bild und kein Ergebnis
-an einen fremden Server übertragen.
+* Die **Breite** bestimmt der scharf abgebildete Bereich im oberen Bildteil,
+  wo Kopf und Oberkörper liegen. Das Brett im unteren Teil zählt dafür nicht,
+  weil seine Figuren kontrastreich sind und das Rechteck sonst über die ganze
+  Bildbreite zögen. Die Breite beträgt mindestens 55 Prozent des Bildes.
+* Die **Höhe** reicht von 2 bis 96 Prozent des Bildes, also vom Kopf bis zum
+  Brett.
 
-Was die Erkennung kann und was nicht:
+Zusätzlich sucht der Browser mit
+[pico.js](https://github.com/nenadmarkus/picojs) nach Gesichtern. Liegt ein
+sicher erkanntes Gesicht außerhalb des Vorschlags, wird er seitlich
+erweitert. Verkleinert wird er nie. Bibliothek und Erkennungsdaten liegen
+dem Bundle bei und laufen vollständig im Browser: Es wird kein Bild und kein
+Ergebnis an einen fremden Server übertragen.
 
-* Sie findet Gesichter, die ungefähr nach vorn schauen und aufrecht stehen.
-  Profile, stark geneigte Köpfe und sehr kleine Gesichter entgehen ihr.
-* Brillen, Schatten und dunkle Bilder senken die Sicherheit. Damit ein
-  Fehlfund das Rechteck nicht vom Kopf wegzieht, zählt neben dem besten Fund
-  jeder weitere nur, wenn er für sich genommen sicher ist. Auf Gruppenfotos
-  können deshalb einzelne Köpfe fehlen.
-* Der Vorschlag bleibt ein Vorschlag. Gespeichert wird erst mit Häkchen.
+Die Regel ist an 206 Turnierfotos gemessen, deren wichtigen Teil ein
+Benutzer von Hand markiert hatte. Kriterien waren: scharf abgebildet,
+Gesicht mit Oberkörper, das Brett dabei, wenn Blick oder Hand dorthin gehen.
+
+| Vorschlag | mittlere Überdeckung mit den Markierungen |
+| --- | --- |
+| Rechteck um die Köpfe, bis Version 1.4.0 | 0,24 |
+| ganzes Bild | 0,61 |
+| Schärferegel, ab Version 1.5.0 | 0,74 |
+
+Überdeckung heißt Schnittfläche durch Vereinigungsfläche; 1 wäre
+deckungsgleich. Der Wert 0,74 stammt von Fotos, an denen die Regel nicht
+eingestellt wurde.
+
+Was die Regel nicht kann: Sie kennt keine Motive, nur Schärfe. Bei
+durchgehend scharfen Fotos wie Gruppenbildern oder Totalen wird das Rechteck
+breit. Bei Bildarten, die ganz anders aufgebaut sind als Spielerfotos,
+passen die festen Kanten oben und unten womöglich nicht. Der Vorschlag
+bleibt deshalb ein Vorschlag; gespeichert wird erst mit Häkchen.
 
 ### Wichtiger Bildteil automatisch
 
 Mit dem Häkchen **„Wichtigen Bildteil automatisch markieren“** im Auftrag
-schätzt das Modul den wichtigen Teil beim Ausführen ungeprüft für alle
+setzt das Modul den wichtigen Teil beim Ausführen ungeprüft für alle
 ausgewählten Bilder, die noch keinen haben. Bereits markierte Bilder werden
-nie angefasst. Derselbe Schätzwert ist der Vorschlag im Editor oben — dort
-lässt er sich vor dem Speichern berichtigen, hier nicht. Für Personenfotos
-ist deshalb der Editor der bessere Weg.
-
-Das Verfahren bewertet jedes Pixel eines Vorschaubildes nach Detailreichtum,
-Nähe zu Hauttönen und Farbsättigung und sucht das Fenster, in dem diese
-Wertung am dichtesten liegt. Auf Personenfotos trifft es damit in der Regel
-das Gesicht; ist der Inhalt gleichmäßig verteilt (Turniersaal, Gruppenfoto),
-wird der Teil entsprechend größer. Der Teil umfasst je Achse 30 bis 80
-Prozent des Bildes.
-
-Es ist eine Schätzung, **keine Gesichtserkennung**. Die Vorschau zeigt
-deshalb für die ersten zwölf Bilder das Rechteck über dem Bild. Was nicht
-passt, lässt sich danach in der Dateiverwaltung von Hand nachbessern oder
-über die Versionen der Datei zurücksetzen.
+nie angefasst. Es verwendet dieselbe Schärferegel wie der Editor, aber ohne
+Gesichtserkennung, weil die nur im Browser läuft. Die Vorschau zeigt für die
+ersten zwölf Bilder das Rechteck über dem Bild. Was nicht passt, lässt sich
+danach im Editor oder in der Dateiverwaltung nachbessern oder über die
+Versionen der Datei zurücksetzen.
 
 Gut zu wissen:
 
@@ -228,20 +235,38 @@ unter Contao 4.13 (MooTools) wie unter Contao 5 (Stimulus und Turbo), ohne
 eine der beiden Bibliotheken zu benutzen. Der Prüfstand kontrolliert, dass
 Skript und Template dieselben Attribute kennen.
 
-`src/Resources/public/js/gesichter.js` verbindet den Editor mit pico.js. Die
-Stellschrauben stehen dort als Konstanten: `KANTE` (Auflösung der Analyse),
-`GUETE`, `GUETE_WEITERE` und `ANTEIL_WEITERE` (Schwellen) sowie `ZUGABE`
-(Rand um das Gesicht). Die Fremddateien unter `js/vendor/` bleiben
+Die DCA `tl_metadaten` liefert das Formular mit Dateibaum, das Modul
+`src/Modules/Metadaten.php` kümmert sich um Vorschau, Dateiauswahl, Versionen
+und Speichern.
+
+Die Stellschrauben der Schärferegel stehen als Konstanten in
+`src/Classes/Bildanalyse.php`, samt Herkunft der Werte.
+`src/Resources/public/js/gesichter.js` verbindet den Editor mit pico.js; dort
+legen `SICHER` und `SEITE` fest, ab welcher Güte ein Gesicht den Vorschlag
+erweitert und um wie viel. Die Fremddateien unter `js/vendor/` bleiben
 unverändert; Herkunft, Prüfsummen und Lizenz stehen in der `LIESMICH.md`
 daneben.
+
+### Messung an eigenen Fotos
+
+`tools/bildteilmessung.php` misst die Schätzung an Markierungen von Hand. Es
+braucht eine Liste `dateiname;x;y;breite;höhe` mit den Werten aus `tl_files`
+und einen Ordner mit denselben Fotos, aber weder Contao noch eine Datenbank.
+
+```
+C:\xampp\php\php.exe tools/bildteilmessung.php markierungen.csv C:\Pfad\fotos bericht.csv
+```
+
+Wer die Konstanten ändert, sollte vorher und nachher messen. Die
+Markierungen, an denen die heutigen Werte eingestellt sind, liegen in
+`tools/messdaten/dssam-2026.csv`; die zugehörigen Fotos stammen aus der
+DSSAM-Galerie 2026 auf schachbund.de und liegen nicht im Repository.
 
 ## Lizenz der Fremddateien
 
 pico.js und die Erkennungsdaten `facefinder` stehen unter der MIT-Lizenz,
 Urheber ist Nenad Markuš. Der Lizenztext liegt unter
-`src/Resources/public/js/vendor/LIESMICH.md`. Die DCA `tl_metadaten` liefert das Formular mit Dateibaum, das
-Modul `src/Modules/Metadaten.php` kümmert sich um Vorschau, Dateiauswahl,
-Versionen und Speichern.
+`src/Resources/public/js/vendor/LIESMICH.md`.
 
 ```
 vendor/bin/phpunit          # Unit-Tests der Kernlogik (tests/)

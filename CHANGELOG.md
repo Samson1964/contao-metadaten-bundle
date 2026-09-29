@@ -1,5 +1,24 @@
 # Metadaten Changelog
 
+## Version 1.5.0 (2026-09-29)
+
+Keine Datenbankaktualisierung nötig.
+
+* Change: Der Vorschlag für den wichtigen Bildteil folgt jetzt der **Schärfe** des Fotos. Der scharf abgebildete Bereich im oberen Bildteil bestimmt die Breite, mindestens 55 Prozent der Bildbreite; die Höhe reicht von 2 bis 96 Prozent. Gilt für den Bildteil-Editor und die automatische Markierung
+* Change: Gesichter aus pico.js verkleinern den Vorschlag nicht mehr auf die Köpfe; ein sicher erkanntes Gesicht außerhalb des Vorschlags erweitert ihn nur noch seitlich
+* Change: Die automatische Markierung analysiert Vorschaubilder mit 800 statt 240 Pixeln, wie der Editor
+* Add: Messwerkzeug `tools/bildteilmessung.php`, das die Schätzung an Markierungen von Hand misst, samt den 206 Markierungen der DSSAM-Galerie in `tools/messdaten/dssam-2026.csv`
+
+Grundlage ist eine Messung an 206 Turnierfotos der DSSAM 2026, deren wichtigen Teil der Benutzer von Hand markiert hatte. Mittlere Überdeckung mit diesen Markierungen:
+
+| Vorschlag | Überdeckung |
+| --- | --- |
+| bis 1.4.0: Rechteck um die Köpfe aus pico.js | 0,24 |
+| ganzes Bild | 0,61 |
+| ab 1.5.0: Schärferegel, geprüft an Fotos, an denen sie nicht eingestellt wurde | 0,74 |
+
+pico.js fand nur in der Hälfte der Fotos überhaupt ein Gesicht; Köpfe, die aufs Brett schauen, übersieht es fast immer.
+
 ## Version 1.4.0 (2026-09-28)
 
 Keine Datenbankaktualisierung nötig.

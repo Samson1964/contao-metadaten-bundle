@@ -19,8 +19,10 @@ use Schachbulle\ContaoMetadatenBundle\Classes\Bildteil;
  * Prüft die Schätzung des wichtigen Bildteils an künstlichen Bildern.
  *
  * Echte Fotos gehören nicht ins Repository; die Bilder entstehen deshalb im
- * Test: eine ruhige graue Fläche mit einem unruhigen, hautfarbenen Fleck an
- * bekannter Stelle. Der geschätzte Teil muss diesen Fleck enthalten.
+ * Test: eine ruhige graue Fläche mit einem kontrastreichen, also „scharfen“
+ * Fleck an bekannter Stelle. Der geschätzte Teil muss diesen Fleck
+ * enthalten. Wie gut die Regel an echten Fotos trifft, misst
+ * tools/bildteilmessung.php.
  */
 class BildanalyseTest extends TestCase
 {
@@ -78,24 +80,44 @@ class BildanalyseTest extends TestCase
 		$this->assertLessThanOrEqual($teil['y'] + $teil['height'], $y, 'Punkt liegt unter dem wichtigen Teil');
 	}
 
-	public function testFleckObenRechtsWirdGefunden(): void
+	public function testScharferBereichObenRechtsBestimmtDieBreite(): void
 	{
 		// Fleck von 70 bis 90 Prozent der Breite, 10 bis 35 Prozent der Höhe
 		$teil = Bildanalyse::wichtigerTeil($this->bildMitFleck(1200, 800, 840, 80, 240, 200));
 
 		$this->assertNotNull($teil);
 		$this->assertTeilEnthaelt($teil, 0.8, 0.225);
-		// Ein einzelner Fleck führt zu einem engen Fenster, nicht zum ganzen Bild
-		$this->assertLessThanOrEqual(0.5, $teil['width']);
-		$this->assertLessThanOrEqual(0.5, $teil['height']);
+		// Ein einzelner scharfer Bereich wird auf die Mindestbreite aufgefüllt, nicht aufs ganze Bild
+		$this->assertEqualsWithDelta(0.55, $teil['width'], 0.001);
+		$this->assertEqualsWithDelta(1.0, $teil['x'] + $teil['width'], 0.001);
+		// Höhe fest: vom Kopf bis zum Brett
+		$this->assertEqualsWithDelta(0.02, $teil['y'], 0.0001);
+		$this->assertEqualsWithDelta(0.94, $teil['height'], 0.0001);
 	}
 
-	public function testFleckUntenLinksImHochformat(): void
+	public function testUntererBildteilZaehltFuerDieBreiteNicht(): void
 	{
+		// Links oben ein scharfer Kopfbereich, rechts unten ein ebenso scharfes „Brett“
+		$bild = $this->bildMitFleck(1200, 800, 120, 80, 200, 200);
+		$zweites = $this->bildMitFleck(1200, 800, 800, 560, 300, 200);
+		imagecopy($bild, $zweites, 800, 560, 800, 560, 300, 200);
+
+		$teil = Bildanalyse::wichtigerTeil($bild);
+
+		$this->assertNotNull($teil);
+		$this->assertTeilEnthaelt($teil, 0.183, 0.225);
+		// Das Brett rechts unten zieht das Rechteck nicht nach rechts
+		$this->assertLessThan(0.66, $teil['x'] + $teil['width']);
+	}
+
+	public function testNurUntenScharfNimmtDasGanzeBild(): void
+	{
+		// Einziger scharfer Bereich unten links: Ersatzweise zählt das ganze Bild
 		$teil = Bildanalyse::wichtigerTeil($this->bildMitFleck(600, 900, 60, 600, 180, 180));
 
 		$this->assertNotNull($teil);
-		$this->assertTeilEnthaelt($teil, 0.25, 0.7667);
+		$this->assertLessThanOrEqual(0.25, $teil['x']);
+		$this->assertGreaterThanOrEqual(0.25, $teil['x'] + $teil['width']);
 	}
 
 	public function testErgebnisLiegtImmerImBild(): void
@@ -109,8 +131,7 @@ class BildanalyseTest extends TestCase
 			$this->assertGreaterThanOrEqual(0.0, $teil['y']);
 			$this->assertLessThanOrEqual(1.0001, $teil['x'] + $teil['width']);
 			$this->assertLessThanOrEqual(1.0001, $teil['y'] + $teil['height']);
-			$this->assertGreaterThanOrEqual(0.29, $teil['width']);
-			$this->assertGreaterThanOrEqual(0.29, $teil['height']);
+			$this->assertGreaterThanOrEqual(0.5499, $teil['width']);
 		}
 	}
 
@@ -124,7 +145,8 @@ class BildanalyseTest extends TestCase
 
 	public function testWinzigesBildWirdNichtBewertet(): void
 	{
-		$this->assertNull(Bildanalyse::wichtigerTeil(imagecreatetruecolor(4, 4)));
+		// Kleiner als das Raster der Schärfekarte
+		$this->assertNull(Bildanalyse::wichtigerTeil(imagecreatetruecolor(40, 20)));
 	}
 
 	public function testAusDateiLiestEineBilddatei(): void

@@ -1,11 +1,17 @@
 /*
  * Gesichtserkennung für den Bildteil-Editor des Metadaten-Bundles.
  *
- * Sucht in jedem Vorschaubild des Editors nach Gesichtern und setzt den
- * Vorschlag für den wichtigen Bildteil auf die gefundenen Köpfe. Die
- * eigentliche Erkennung leistet pico.js von Nenad Markuš (MIT-Lizenz, liegt
- * unverändert in vendor/); dieses Skript bereitet die Bilder auf, rechnet
- * die Funde in ein Rechteck um und reicht es an bildteile.js weiter.
+ * Sucht in jedem Vorschaubild des Editors nach Gesichtern. Liegt ein sicher
+ * erkanntes Gesicht außerhalb des Vorschlags, den der Server aus der
+ * Schärfe des Bildes berechnet hat, wird der Vorschlag seitlich erweitert.
+ * Verkleinert oder verschoben wird er nie. Die eigentliche Erkennung
+ * leistet pico.js von Nenad Markuš (MIT-Lizenz, liegt unverändert in
+ * vendor/); dieses Skript bereitet die Bilder auf und reicht das Ergebnis
+ * an bildteile.js weiter.
+ *
+ * Bis Version 1.4.0 setzte dieses Skript den Vorschlag auf die Köpfe. Eine
+ * Messung an 206 von Hand markierten Turnierfotos zeigte: Das ist viel zu
+ * eng, und pico.js übersieht die meisten Köpfe, die aufs Brett schauen.
  *
  * Alles geschieht im Browser. Es wird kein Bild und kein Ergebnis an einen
  * fremden Server geschickt; auch die Erkennungsdaten (facefinder.bin) kommen
@@ -15,12 +21,10 @@
  *   1. Bild auf höchstens KANTE Pixel in eine unsichtbare Zeichenfläche malen
  *   2. in Graustufen umrechnen und die Kaskade darüber laufen lassen
  *   3. Funde bündeln, schwache Funde verwerfen
- *   4. um jedes Gesicht Platz für Haare und Kinn zugeben, alle Köpfe mit
- *      einem Rechteck umschließen
+ *   4. sichere Gesichter außerhalb des Vorschlags seitlich einschließen
  *
- * Findet sich kein Gesicht, bleibt der Vorschlag des Servers (Schätzung aus
- * dem Bildinhalt) stehen. Hat der Benutzer ein Rechteck schon von Hand
- * verändert, wird es nicht mehr angefasst.
+ * Hat der Benutzer ein Rechteck schon von Hand verändert, wird es nicht
+ * mehr angefasst.
  *
  * Schnittstelle zum Template (be_metadaten_bildteile.html5):
  *
@@ -61,8 +65,14 @@
 	/** Kleinstes gesuchtes Gesicht als Anteil der kürzeren Bildkante */
 	var KLEINSTES = 0.06;
 
-	/** Zugabe um das erkannte Gesicht, jeweils als Anteil seiner Größe */
-	var ZUGABE = {oben: 0.55, unten: 0.35, seite: 0.35};
+	/**
+	 * Ab dieser Güte darf ein Gesicht den Vorschlag erweitern, und um wie
+	 * viele Gesichtsbreiten links und rechts. Beides gemessen an 206 von Hand
+	 * markierten Turnierfotos (siehe Bildanalyse.php): Unsichere Funde
+	 * verschlechterten dort das Ergebnis, sichere verbesserten es leicht.
+	 */
+	var SICHER = 20.0;
+	var SEITE = 1.0;
 
 	if (!window.MetadatenGesichter) {
 		/** Versprechen auf die entpackte Kaskade, je Adresse nur einmal geladen */
@@ -148,22 +158,36 @@
 		};
 
 		/** Umschließt alle Köpfe mit einem Rechteck in Bruchteilen der Bildgröße */
-		var umschliesse = function (gesichter) {
-			var links = 1, oben = 1, rechts = 0, unten = 0;
+		/**
+		 * Erweitert den Vorschlag des Servers seitlich um sichere Gesichter,
+		 * die außerhalb liegen. Liefert null, wenn sich nichts ändert.
+		 *
+		 * Der Vorschlag selbst stammt aus der Schärfekarte (Bildanalyse.php)
+		 * und trifft die Markierungen von Hand deutlich besser als ein Rechteck
+		 * um die Köpfe. Die Gesichter dürfen ihn deshalb nur vergrößern, nie
+		 * verkleinern oder verschieben; oben und unten bleiben unberührt.
+		 */
+		var erweitere = function (editor, gesichter) {
+			var werte = (editor.getAttribute('data-vorschlag') || '').split(',').map(parseFloat);
+
+			if (werte.length !== 4 || werte.some(isNaN)) {
+				return null;
+			}
+
+			var links = werte[0], rechts = werte[0] + werte[2];
+			var vorher = [links, rechts].join();
 
 			gesichter.forEach(function (g) {
-				links = Math.min(links, g.x - g.gx * (0.5 + ZUGABE.seite));
-				rechts = Math.max(rechts, g.x + g.gx * (0.5 + ZUGABE.seite));
-				oben = Math.min(oben, g.y - g.gy * (0.5 + ZUGABE.oben));
-				unten = Math.max(unten, g.y + g.gy * (0.5 + ZUGABE.unten));
+				if (g.guete >= SICHER) {
+					links = Math.min(links, g.x - g.gx * SEITE);
+					rechts = Math.max(rechts, g.x + g.gx * SEITE);
+				}
 			});
 
 			links = Math.max(0, links);
-			oben = Math.max(0, oben);
 			rechts = Math.min(1, rechts);
-			unten = Math.min(1, unten);
 
-			return {x: links, y: oben, w: rechts - links, h: unten - oben};
+			return [links, rechts].join() === vorher ? null : {x: links, y: werte[1], w: rechts - links, h: werte[3]};
 		};
 
 		var melde = function (karte, anzahl) {
@@ -188,8 +212,10 @@
 				var gesichter = sucheGesichter(bild, kaskade);
 
 				// Was der Benutzer inzwischen von Hand gesetzt hat, bleibt
-				if (gesichter.length > 0 && !window.MetadatenBildteile.istGeaendert(karte)) {
-					window.MetadatenBildteile.setzeVorschlag(karte, umschliesse(gesichter));
+				var neu = gesichter.length > 0 ? erweitere(karte.querySelector('[data-metadaten-editor]'), gesichter) : null;
+
+				if (neu && !window.MetadatenBildteile.istGeaendert(karte)) {
+					window.MetadatenBildteile.setzeVorschlag(karte, neu);
 				}
 
 				melde(karte, gesichter.length);

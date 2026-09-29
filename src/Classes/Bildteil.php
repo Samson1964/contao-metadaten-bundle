@@ -41,11 +41,6 @@ final class Bildteil
 	public const ENDUNGEN = array('jpg', 'jpeg', 'png', 'gif', 'webp', 'avif', 'bmp');
 
 	/**
-	 * Kantenlänge des Vorschaubildes in Pixeln (Modus „box“, also eingepasst)
-	 */
-	private const VORSCHAU = 240;
-
-	/**
 	 * Kleinste Ausdehnung eines von Hand gesetzten wichtigen Teils je Achse (Bruchteil).
 	 *
 	 * Bewusst klein: Auf einem Gruppenfoto nimmt ein Kopf nur wenige Prozent
@@ -109,7 +104,8 @@ final class Bildteil
 			return null;
 		}
 
-		$bild = self::vorschaubild($pfad, self::VORSCHAU);
+		// Analysiert wird in der Größe, in der die Regel gemessen wurde
+		$bild = self::vorschaubild($pfad, Bildanalyse::KANTE);
 
 		if (null === $bild)
 		{

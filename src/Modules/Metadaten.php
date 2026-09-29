@@ -98,7 +98,7 @@ class Metadaten
 	/**
 	 * Kantenlänge der Vorschaubilder im Bildteil-Editor in Pixeln
 	 */
-	private const EDITOR_KANTE = 800;
+	private const EDITOR_KANTE = Bildanalyse::KANTE;
 
 	/**
 	 * Baut die Vorschauseite eines Auftrags und führt ihn auf Wunsch aus.
